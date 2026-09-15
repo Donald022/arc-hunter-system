@@ -217,7 +217,7 @@ railway variable set KEY=value
 - [x] `npm run demo:fixtures` prints five-hunter placeholder output
 - [x] Migrations apply to `arc` / `arc_test` on Railway deployment
 - [x] Railway deployment healthy and accessible
-- [ ] Dashboard fixture login works on Railway
+- [x] Dashboard fixture login works on Railway
 - [x] Pause discovery blocks CLI and `Run now` (covered by tests)
 - [x] Slack signature tests pass; no real channel posts
 - [ ] Approved facts record filled by Donald before any live send
