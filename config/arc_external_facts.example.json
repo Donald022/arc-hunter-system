@@ -1,0 +1,32 @@
+{
+  "utility_mw_current_verified": "",
+  "utility_mw_target": "",
+  "it_mw_planned": "",
+  "land_control_status": "",
+  "site_location_disclosure": "",
+  "target_rfs_status": "",
+  "legal_sender_entity": "",
+  "approved_sender_name_title": "",
+  "reply_to": "",
+  "postal_address": "",
+  "opt_out_instructions": "",
+  "restricted_claims": [
+    "75 MW secured",
+    "75 MW available for IT",
+    "shovel ready",
+    "we represent"
+  ],
+  "facts": [
+    {
+      "id": "cautious_mexico_intro",
+      "claim": "Evaluating a data-center development opportunity in Mexico",
+      "basis": "Unverified project conversation; not approved for external use until Donald confirms",
+      "evidence_url_or_document": "",
+      "approved_wording": "We are evaluating a data-center development opportunity in Mexico and beginning conversations with potential anchor tenants.",
+      "approved_by": "",
+      "approved_at": "",
+      "valid_until": "",
+      "can_use_in_first_touch": false
+    }
+  ]
+}

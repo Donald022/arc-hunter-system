@@ -1,0 +1,45 @@
+{
+  "name": "arc-hunter-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "tsx src/server.ts",
+    "start": "tsx src/server.ts",
+    "start:prod": "node dist/src/server.js",
+    "migrate": "tsx src/db/migrate.ts",
+    "discover": "tsx src/cli.ts discover",
+    "research": "tsx src/cli.ts research",
+    "draft": "tsx src/cli.ts draft",
+    "reconcile": "tsx src/cli.ts reconcile",
+    "replies": "tsx src/cli.ts replies",
+    "demo:fixtures": "tsx src/cli.ts demo",
+    "setup:notion": "tsx scripts/setup-notion.ts",
+    "gmail:oauth": "tsx scripts/gmail-oauth-token.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "fastify": "^5.2.1",
+    "pg": "^8.13.3",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/pg": "^8.11.11",
+    "prettier": "^3.5.3",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  }
+}

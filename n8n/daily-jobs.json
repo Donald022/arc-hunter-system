@@ -1,0 +1,90 @@
+{
+  "name": "ARC Hunter daily jobs",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Weekdays 13:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 24 }] }
+      }
+    },
+    {
+      "id": "2",
+      "name": "Discover",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [260, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.ARC_HUNTER_BASE_URL}}/internal/jobs/discover",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Authorization", "value": "Bearer {{$env.ARC_INTERNAL_JOB_TOKEN}}" }]
+        }
+      }
+    },
+    {
+      "id": "3",
+      "name": "Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.ARC_HUNTER_BASE_URL}}/internal/jobs/research",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Reconcile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [740, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.ARC_HUNTER_BASE_URL}}/internal/jobs/reconcile"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Replies every 15m",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 240],
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] }
+      }
+    },
+    {
+      "id": "6",
+      "name": "Replies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [260, 240],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.ARC_HUNTER_BASE_URL}}/internal/jobs/replies"
+      }
+    }
+  ],
+  "connections": {
+    "Weekdays 13:00 UTC": { "main": [[{ "node": "Discover", "type": "main", "index": 0 }]] },
+    "Discover": { "main": [[{ "node": "Research", "type": "main", "index": 0 }]] },
+    "Research": { "main": [[{ "node": "Reconcile", "type": "main", "index": 0 }]] },
+    "Replies every 15m": { "main": [[{ "node": "Replies", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "notes": "Credentials live in n8n env/credential store. Do not paste tokens into this JSON. The TypeScript service owns all business rules."
+  }
+}

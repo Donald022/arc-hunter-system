@@ -1,0 +1,76 @@
+sources:
+  - id: fixture-broker-va
+    hunter: broker
+    parser: fixture
+    enabled: true
+    cadence: daily
+    url: fixture://broker-va-tenant-rep
+    notes: Northern Virginia data-center tenant representation fixture.
+
+  - id: fixture-tenant-neocloud
+    hunter: tenant
+    parser: fixture
+    enabled: true
+    cadence: daily
+    url: fixture://tenant-neocloud-expansion
+
+  - id: fixture-expansion-rss
+    hunter: expansion
+    parser: fixture
+    enabled: true
+    cadence: daily
+    url: fixture://expansion-capital-and-mw
+
+  - id: fixture-deal-lease
+    hunter: deal
+    parser: fixture
+    enabled: true
+    cadence: daily
+    url: fixture://deal-hyperscale-lease
+
+  - id: fixture-network-conference
+    hunter: network
+    parser: fixture
+    enabled: true
+    cadence: daily
+    url: fixture://network-conference-speaker
+
+  - id: fixture-generic-cre-mexico
+    hunter: broker
+    parser: fixture
+    enabled: true
+    cadence: daily
+    url: fixture://generic-cre-mexico
+
+  - id: manual-csv
+    hunter: broker
+    parser: csv
+    enabled: true
+    cadence: manual
+    url: file://fixtures/manual-import.csv
+
+  - id: public-rss-datacenter-knowledge
+    hunter: expansion
+    parser: rss
+    enabled: false
+    cadence: daily
+    url: https://www.datacenterknowledge.com/rss.xml
+    notes: Inspect robots and feed availability before enabling. Disabled by default.
+
+  - id: site-selectors-guild
+    hunter: broker
+    parser: html
+    enabled: false
+    cadence: weekly
+    url: https://siteselectorsguild.com/site-selection/find-a-site-selector/
+    notes: Needs setup — do not assume this page permits automated extraction.
+
+target_accounts:
+  brokers:
+    - cbre.com
+    - jll.com
+    - nmrk.com
+    - cushmanwakefield.com
+    - colliers.com
+    - cresa.com
+  operators: []
