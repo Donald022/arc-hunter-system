@@ -164,12 +164,60 @@ Not exercised (blocked on credentials Donald has not pasted):
 
 Supabase advisors on the **empty** `public` schema (no ARC tables applied yet): `public.rls_auto_enable()` is executable by anon/authenticated. That function is pre-existing on the project, not created by this build. ARC tables will live in private `arc` with RLS enabled and no policies.
 
-## 11. Manual verification checklist (still dry-run)
+## 11. Railway deployment (always-on host)
+
+**Service:** https://arc-hunter-production.up.railway.app  
+**Status:** ✓ Deployed and running  
+**Branch:** Connected to `Donald022/arc-hunter-system` repository  
+
+### Available endpoints:
+
+- `GET /health` — Health check (public)
+- `GET /metrics` — Metrics snapshot (public)
+- `GET /dashboard` — Operator dashboard (requires login)
+- `POST /slack/actions` — Slack webhook for approvals
+- `POST /internal/jobs/:job` — Trigger jobs: discover, research, draft, reconcile, replies (requires `INTERNAL_JOB_TOKEN`)
+
+### Current configuration:
+
+- `NODE_ENV=staging` — Allows fixture login for testing
+- `DASHBOARD_FIXTURE_LOGIN=true` — Demo login enabled
+- `DRY_RUN=true` — Safe mode (no live sends)
+- `LIVE_SEND_ENABLED=false` — Email sending disabled
+- `LLM_LIVE_ENABLED=true` — Gemini API connected
+- `DATABASE_URL` — Connected to Supabase dev project
+- All 44 required environment variables uploaded
+
+### Deployment commands:
+
+```bash
+# View status
+railway status
+
+# View logs
+railway logs
+
+# Redeploy
+railway redeploy --yes
+
+# Update environment variables
+railway variable set KEY=value
+```
+
+### Notes:
+
+- Migrations run automatically on container start
+- Service auto-redeploys on git push to connected branch
+- Railway CLI requires authentication: `railway login`
+- Config as Code (`railway.json`) is deprecated but works until 2026-12-01
+
+## 12. Manual verification checklist (still dry-run)
 
 - [x] `npm test` and `npm run typecheck` pass
 - [x] `npm run demo:fixtures` prints five-hunter placeholder output
-- [ ] Migrations apply to `arc` / `arc_test` on the **dev** project
-- [ ] Dashboard fixture login works locally; production fixture login refused
+- [x] Migrations apply to `arc` / `arc_test` on Railway deployment
+- [x] Railway deployment healthy and accessible
+- [ ] Dashboard fixture login works on Railway
 - [x] Pause discovery blocks CLI and `Run now` (covered by tests)
 - [x] Slack signature tests pass; no real channel posts
 - [ ] Approved facts record filled by Donald before any live send
