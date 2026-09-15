@@ -27,7 +27,14 @@ export function checksum(sql: string): string {
 function checksumCandidates(sql: string): string[] {
   const lf = sql.replace(/\r\n/g, "\n");
   const crlf = lf.replace(/\n/g, "\r\n");
-  return [...new Set([checksum(sql), checksum(lf), createHash("sha256").update(sql).digest("hex"), createHash("sha256").update(crlf).digest("hex")])];
+  return [
+    ...new Set([
+      checksum(sql),
+      checksum(lf),
+      createHash("sha256").update(sql).digest("hex"),
+      createHash("sha256").update(crlf).digest("hex"),
+    ]),
+  ];
 }
 
 export async function migrate(opts?: { databaseUrl?: string; schema?: string }): Promise<string[]> {
@@ -68,7 +75,10 @@ export async function migrate(opts?: { databaseUrl?: string; schema?: string }):
       await client.query("BEGIN");
       try {
         await client.query(sql);
-        await client.query("INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)", [file, sum]);
+        await client.query("INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)", [
+          file,
+          sum,
+        ]);
         await client.query("COMMIT");
         applied.push(file);
         logger.info("applied migration", { filename: file, schema });

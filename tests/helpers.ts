@@ -46,7 +46,10 @@ export function approvedFacts(overrides: Partial<ApprovedFactsBundle> = {}): App
   return bundle;
 }
 
-export async function seedQualifiedContact(store: MemoryStore, extra: Partial<ContactRecord> = {}): Promise<ContactRecord> {
+export async function seedQualifiedContact(
+  store: MemoryStore,
+  extra: Partial<ContactRecord> = {},
+): Promise<ContactRecord> {
   const company = await store.companies.upsert({
     name: "Example Capital Advisors",
     domain: "example-capital-advisors.test",
@@ -76,7 +79,9 @@ export async function seedQualifiedContact(store: MemoryStore, extra: Partial<Co
     contact_id: contact.id,
     company_id: company.id,
     url: "https://example-capital-advisors.test/practices/data-centers",
-    url_hash: createHash("sha256").update("https://example-capital-advisors.test/practices/data-centers").digest("hex"),
+    url_hash: createHash("sha256")
+      .update("https://example-capital-advisors.test/practices/data-centers")
+      .digest("hex"),
     quoted_text: "Occupier representation for hyperscale data-center leases",
     observed_at: new Date().toISOString(),
     hunter: "broker",
@@ -103,7 +108,10 @@ export async function seedDraft(
     sender_address: sender,
     invalidated: false,
     personalization_claims: [
-      { text: "occupier representation", evidence_url: "https://example-capital-advisors.test/practices/data-centers" },
+      {
+        text: "occupier representation",
+        evidence_url: "https://example-capital-advisors.test/practices/data-centers",
+      },
     ],
     arc_claim_ids: ["cautious_mexico_intro"],
     word_count: 90,

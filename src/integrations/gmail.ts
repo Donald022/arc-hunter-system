@@ -18,12 +18,20 @@ export interface GmailPort {
     threadId?: string;
   }): Promise<{ messageId: string; threadId: string }>;
   listSentByRfc(rfcMessageId: string): Promise<{ messageId: string; threadId: string } | undefined>;
-  listThread(threadId: string): Promise<Array<{ id: string; from: string; snippet: string; internalDate: string }>>;
+  listThread(
+    threadId: string,
+  ): Promise<Array<{ id: string; from: string; snippet: string; internalDate: string }>>;
 }
 
 export class SyntheticMailbox implements GmailPort {
   sent: Array<{ rfcMessageId: string; messageId: string; threadId: string; raw: string }> = [];
-  inbox: Array<{ threadId: string; id: string; from: string; snippet: string; internalDate: string }> = [];
+  inbox: Array<{
+    threadId: string;
+    id: string;
+    from: string;
+    snippet: string;
+    internalDate: string;
+  }> = [];
   failNext = false;
   timeoutNext = false;
   constructor(public sender = "outreach@arc.test") {}
@@ -74,7 +82,10 @@ export function getGmailPort(): GmailPort {
 }
 
 export function rfcMessageIdFor(draftId: string, version: number, contactId: string): string {
-  const h = createHash("sha256").update(`${draftId}:${version}:${contactId}`).digest("hex").slice(0, 24);
+  const h = createHash("sha256")
+    .update(`${draftId}:${version}:${contactId}`)
+    .digest("hex")
+    .slice(0, 24);
   return `<arc-${h}@arc-hunter.local>`;
 }
 
@@ -96,11 +107,20 @@ export async function executeApprovedSend(opts: {
   try {
     await requireOutboundAllowed(store, cfg);
   } catch (err) {
-    return { ok: false, message: err instanceof Error ? err.message : "outbound_blocked", sent: false };
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : "outbound_blocked",
+      sent: false,
+    };
   }
 
   const compliance = senderCompliance(facts);
-  if (!compliance.ok) return { ok: false, message: `missing_compliance:${compliance.missing.join(",")}`, sent: false };
+  if (!compliance.ok)
+    return {
+      ok: false,
+      message: `missing_compliance:${compliance.missing.join(",")}`,
+      sent: false,
+    };
   if (forbidsAutoSend(opts.contact.state, opts.contact.do_not_contact)) {
     return { ok: false, message: "state_forbids_send", sent: false };
   }
@@ -113,13 +133,22 @@ export async function executeApprovedSend(opts: {
   }
 
   const sentToday = (await store.sends.list()).filter(
-    (s) => s.status === "sent" && s.sent_at && s.sent_at.slice(0, 10) === new Date().toISOString().slice(0, 10),
+    (s) =>
+      s.status === "sent" &&
+      s.sent_at &&
+      s.sent_at.slice(0, 10) === new Date().toISOString().slice(0, 10),
   ).length;
   if (sentToday >= cfg.DAILY_SEND_CAP) return { ok: false, message: "daily_send_cap", sent: false };
 
   const campaignId = opts.contact.campaign_id ?? "camp-broker";
   const existing = await store.sends.firstTouch(opts.contact.id, campaignId);
-  if (existing) return { ok: true, message: "already_sent_or_reserved", sent: existing.status === "sent", attempt: existing };
+  if (existing)
+    return {
+      ok: true,
+      message: "already_sent_or_reserved",
+      sent: existing.status === "sent",
+      attempt: existing,
+    };
 
   let attempt: SendAttempt;
   try {
@@ -138,7 +167,12 @@ export async function executeApprovedSend(opts: {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("duplicate_first_touch")) {
       const prior = await store.sends.firstTouch(opts.contact.id, campaignId);
-      return { ok: true, message: "duplicate_click", sent: prior?.status === "sent", attempt: prior };
+      return {
+        ok: true,
+        message: "duplicate_click",
+        sent: prior?.status === "sent",
+        attempt: prior,
+      };
     }
     throw err;
   }
@@ -221,8 +255,7 @@ export async function liveGmailSend(input: {
 }): Promise<{ messageId: string; threadId: string }> {
   const encoded = Buffer.from(
     `From: me\r\nMessage-ID: ${input.rfcMessageId}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${input.raw}`,
-  )
-    .toString("base64url");
+  ).toString("base64url");
   const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST",
     headers: { authorization: `Bearer ${input.accessToken}`, "content-type": "application/json" },

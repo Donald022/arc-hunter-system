@@ -27,7 +27,12 @@ export async function maybeEnrich(
   store: Store = getStore(),
 ): Promise<EnrichmentResult | undefined> {
   if (contact.work_email) {
-    return { email: contact.work_email, confidence: contact.email_confidence, credits: 0, source: "existing" };
+    return {
+      email: contact.work_email,
+      confidence: contact.email_confidence,
+      credits: 0,
+      source: "existing",
+    };
   }
 
   const publicEmail = publicEmailForFixture(contact);

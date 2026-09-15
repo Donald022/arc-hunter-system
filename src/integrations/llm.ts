@@ -49,7 +49,9 @@ const INPUT_USD_PER_M = 0.3;
 const OUTPUT_USD_PER_M = 2.5;
 
 export function estimateUsd(inputTokens: number, outputTokens: number): number {
-  return (inputTokens / 1_000_000) * INPUT_USD_PER_M + (outputTokens / 1_000_000) * OUTPUT_USD_PER_M;
+  return (
+    (inputTokens / 1_000_000) * INPUT_USD_PER_M + (outputTokens / 1_000_000) * OUTPUT_USD_PER_M
+  );
 }
 
 export function utcDay(d = new Date()): string {
@@ -121,16 +123,27 @@ export class LlmAdapter {
       };
     }
     if (live && this.cfg.LLM_BILLING_TIER !== "paid" && sensitive) {
-      return { ok: false, code: "unpaid_tier", message: "LLM_BILLING_TIER must be paid for real-contact jobs" };
+      return {
+        ok: false,
+        code: "unpaid_tier",
+        message: "LLM_BILLING_TIER must be paid for real-contact jobs",
+      };
     }
     if (this.cfg.LLM_PROVIDER !== "fixture" && !live) {
-      return { ok: false, code: "live_disabled", message: "LLM_LIVE_ENABLED=false; using live provider blocked" };
+      return {
+        ok: false,
+        code: "live_disabled",
+        message: "LLM_LIVE_ENABLED=false; using live provider blocked",
+      };
     }
     if (live && !this.cfg.LLM_API_KEY) {
       return { ok: false, code: "missing_credentials", message: "LLM_API_KEY missing" };
     }
 
-    const reservedUsd = estimateUsd(this.cfg.LLM_RESERVED_INPUT_TOKENS, this.cfg.LLM_RESERVED_OUTPUT_TOKENS);
+    const reservedUsd = estimateUsd(
+      this.cfg.LLM_RESERVED_INPUT_TOKENS,
+      this.cfg.LLM_RESERVED_OUTPUT_TOKENS,
+    );
     const usage = await this.store.llm.getDay(utcDay());
     if (usage.requests + 1 > this.cfg.DAILY_LLM_REQUEST_CAP) {
       return { ok: false, code: "budget_exhausted", message: "daily LLM request cap reached" };
@@ -151,7 +164,12 @@ export class LlmAdapter {
       const json = this.fixtureFn ? this.fixtureFn(req) : defaultFixture(req);
       const inputTokens = Math.ceil((req.system.length + req.user.length) / 4);
       const outputTokens = Math.ceil(JSON.stringify(json).length / 4);
-      return { json, inputTokens, outputTokens, estimatedUsd: estimateUsd(inputTokens, outputTokens) };
+      return {
+        json,
+        inputTokens,
+        outputTokens,
+        estimatedUsd: estimateUsd(inputTokens, outputTokens),
+      };
     }
     return geminiComplete(req, this.cfg);
   }

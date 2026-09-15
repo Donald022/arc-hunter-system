@@ -34,7 +34,9 @@ export class PostgresStore implements Store {
   constructor(private readonly pool: pg.Pool) {}
 
   companies = {
-    upsert: async (input: Omit<CompanyRecord, "id" | "created_at" | "updated_at"> & { id?: string }) => {
+    upsert: async (
+      input: Omit<CompanyRecord, "id" | "created_at" | "updated_at"> & { id?: string },
+    ) => {
       const domain = normalizeDomain(input.domain);
       if (domain) {
         const found = await this.pool.query("SELECT * FROM companies WHERE domain = $1", [domain]);
@@ -97,13 +99,16 @@ export class PostgresStore implements Store {
   };
 
   contacts = {
-    upsert: async (input: Omit<ContactRecord, "id" | "created_at" | "updated_at"> & { id?: string }) => {
+    upsert: async (
+      input: Omit<ContactRecord, "id" | "created_at" | "updated_at"> & { id?: string },
+    ) => {
       const email = normalizeEmail(input.work_email);
       const profile = normalizeProfileUrl(input.profile_url);
       const existing = email
         ? (await this.pool.query("SELECT * FROM contacts WHERE work_email=$1", [email])).rows[0]
         : profile
-          ? (await this.pool.query("SELECT * FROM contacts WHERE profile_url=$1", [profile])).rows[0]
+          ? (await this.pool.query("SELECT * FROM contacts WHERE profile_url=$1", [profile]))
+              .rows[0]
           : (
               await this.pool.query(
                 "SELECT * FROM contacts WHERE company_id=$1 AND lower(name)=lower($2)",
@@ -182,11 +187,15 @@ export class PostgresStore implements Store {
       return r.rows[0] ? mapContact(r.rows[0]) : undefined;
     },
     byEmail: async (email: string) => {
-      const r = await this.pool.query("SELECT * FROM contacts WHERE work_email=$1", [normalizeEmail(email)]);
+      const r = await this.pool.query("SELECT * FROM contacts WHERE work_email=$1", [
+        normalizeEmail(email),
+      ]);
       return r.rows[0] ? mapContact(r.rows[0]) : undefined;
     },
     byProfile: async (url: string) => {
-      const r = await this.pool.query("SELECT * FROM contacts WHERE profile_url=$1", [normalizeProfileUrl(url)]);
+      const r = await this.pool.query("SELECT * FROM contacts WHERE profile_url=$1", [
+        normalizeProfileUrl(url),
+      ]);
       return r.rows[0] ? mapContact(r.rows[0]) : undefined;
     },
     list: async (filter?: { state?: ContactState; hunter?: Hunter; q?: string }) => {
@@ -202,7 +211,9 @@ export class PostgresStore implements Store {
       }
       if (filter?.q) {
         params.push(`%${filter.q.toLowerCase()}%`);
-        clauses.push(`(lower(name) LIKE $${params.length} OR coalesce(work_email,'') LIKE $${params.length} OR lower(coalesce(title,'')) LIKE $${params.length})`);
+        clauses.push(
+          `(lower(name) LIKE $${params.length} OR coalesce(work_email,'') LIKE $${params.length} OR lower(coalesce(title,'')) LIKE $${params.length})`,
+        );
       }
       const sql = `SELECT * FROM contacts ${clauses.length ? "WHERE " + clauses.join(" AND ") : ""} ORDER BY updated_at DESC`;
       const r = await this.pool.query(sql, params);
@@ -217,17 +228,19 @@ export class PostgresStore implements Store {
         "INSERT INTO contact_transitions (contact_id, from_state, to_state, actor, reason) VALUES ($1,$2,$3,$4,$5)",
         [contactId, from, to, actor, reason ?? null],
       );
-      const r = await this.pool.query("UPDATE contacts SET state=$1, updated_at=now() WHERE id=$2 RETURNING *", [
-        to,
-        contactId,
-      ]);
+      const r = await this.pool.query(
+        "UPDATE contacts SET state=$1, updated_at=now() WHERE id=$2 RETURNING *",
+        [to, contactId],
+      );
       return mapContact(r.rows[0]);
     },
   };
 
   signals = {
     insert: async (signal: Signal, extras?: { company_id?: string; contact_id?: string }) => {
-      const existing = await this.pool.query("SELECT * FROM signals WHERE raw_content_hash=$1", [signal.raw_content_hash]);
+      const existing = await this.pool.query("SELECT * FROM signals WHERE raw_content_hash=$1", [
+        signal.raw_content_hash,
+      ]);
       if (existing.rows[0]) return mapSignal(existing.rows[0]);
       const r = await this.pool.query(
         `INSERT INTO signals (hunter, source_url, source_title, publisher, observed_at, published_at, company_name, company_id, person, contact_id, role, signal_type, quoted_evidence, extractor_version, confidence, raw_content_hash)
@@ -265,7 +278,9 @@ export class PostgresStore implements Store {
 
   evidence = {
     insert: async (row: Omit<EvidenceRecord, "id"> & { id?: string }) => {
-      const existing = await this.pool.query("SELECT * FROM evidence WHERE url_hash=$1", [row.url_hash]);
+      const existing = await this.pool.query("SELECT * FROM evidence WHERE url_hash=$1", [
+        row.url_hash,
+      ]);
       if (existing.rows[0]) return mapEvidence(existing.rows[0]);
       const r = await this.pool.query(
         `INSERT INTO evidence (id, signal_id, contact_id, company_id, url, url_hash, quoted_text, published_at, observed_at, hunter)
@@ -358,7 +373,10 @@ export class PostgresStore implements Store {
       return r.rows[0] ? mapDraft(r.rows[0]) : undefined;
     },
     latestForContact: async (contactId: string) => {
-      const r = await this.pool.query("SELECT * FROM drafts WHERE contact_id=$1 ORDER BY version DESC LIMIT 1", [contactId]);
+      const r = await this.pool.query(
+        "SELECT * FROM drafts WHERE contact_id=$1 ORDER BY version DESC LIMIT 1",
+        [contactId],
+      );
       return r.rows[0] ? mapDraft(r.rows[0]) : undefined;
     },
     invalidate: async (draftId: string) => {
@@ -371,13 +389,22 @@ export class PostgresStore implements Store {
       const r = await this.pool.query(
         `INSERT INTO outreach_events (id, contact_id, type, actor, at, payload)
          VALUES (COALESCE($1::uuid, gen_random_uuid()), $2,$3,$4,$5,$6::jsonb) RETURNING *`,
-        [row.id ?? null, row.contact_id ?? null, row.type, row.actor, row.at, JSON.stringify(row.payload)],
+        [
+          row.id ?? null,
+          row.contact_id ?? null,
+          row.type,
+          row.actor,
+          row.at,
+          JSON.stringify(row.payload),
+        ],
       );
       return mapEvent(r.rows[0]);
     },
     list: async (contactId?: string) => {
       const r = contactId
-        ? await this.pool.query("SELECT * FROM outreach_events WHERE contact_id=$1 ORDER BY at", [contactId])
+        ? await this.pool.query("SELECT * FROM outreach_events WHERE contact_id=$1 ORDER BY at", [
+            contactId,
+          ])
         : await this.pool.query("SELECT * FROM outreach_events ORDER BY at");
       return r.rows.map(mapEvent);
     },
@@ -429,7 +456,14 @@ export class PostgresStore implements Store {
         `UPDATE send_attempts SET status=COALESCE($1,status), gmail_message_id=COALESCE($2,gmail_message_id),
          gmail_thread_id=COALESCE($3,gmail_thread_id), sent_at=COALESCE($4,sent_at), error=COALESCE($5,error)
          WHERE id=$6 RETURNING *`,
-        [patch.status ?? null, patch.gmail_message_id ?? null, patch.gmail_thread_id ?? null, patch.sent_at ?? null, patch.error ?? null, sendId],
+        [
+          patch.status ?? null,
+          patch.gmail_message_id ?? null,
+          patch.gmail_thread_id ?? null,
+          patch.sent_at ?? null,
+          patch.error ?? null,
+          sendId,
+        ],
       );
       if (!r.rows[0]) throw new Error("send not found");
       return mapSend(r.rows[0]);
@@ -446,20 +480,26 @@ export class PostgresStore implements Store {
         `INSERT INTO suppression (id, email, domain, reason, actor)
          VALUES (COALESCE($1::uuid, gen_random_uuid()), $2,$3,$4,$5)
          ON CONFLICT DO NOTHING RETURNING *`,
-        [row.id ?? null, normalizeEmail(row.email) ?? null, normalizeDomain(row.domain) ?? null, row.reason, row.actor],
+        [
+          row.id ?? null,
+          normalizeEmail(row.email) ?? null,
+          normalizeDomain(row.domain) ?? null,
+          row.reason,
+          row.actor,
+        ],
       );
       if (r.rows[0]) return mapSuppression(r.rows[0]);
-      const again = await this.pool.query("SELECT * FROM suppression WHERE email=$1 OR domain=$2 LIMIT 1", [
-        normalizeEmail(row.email) ?? null,
-        normalizeDomain(row.domain) ?? null,
-      ]);
+      const again = await this.pool.query(
+        "SELECT * FROM suppression WHERE email=$1 OR domain=$2 LIMIT 1",
+        [normalizeEmail(row.email) ?? null, normalizeDomain(row.domain) ?? null],
+      );
       return mapSuppression(again.rows[0]);
     },
     isSuppressed: async (email?: string, domain?: string) => {
-      const r = await this.pool.query("SELECT 1 FROM suppression WHERE email=$1 OR domain=$2 LIMIT 1", [
-        normalizeEmail(email) ?? null,
-        normalizeDomain(domain) ?? null,
-      ]);
+      const r = await this.pool.query(
+        "SELECT 1 FROM suppression WHERE email=$1 OR domain=$2 LIMIT 1",
+        [normalizeEmail(email) ?? null, normalizeDomain(domain) ?? null],
+      );
       return r.rows.length > 0;
     },
     list: async () => {
@@ -476,7 +516,12 @@ export class PostgresStore implements Store {
       );
       return mapJob(r.rows[0]);
     },
-    finish: async (jobId: string, status: "ok" | "error", result?: Record<string, unknown>, error?: string) => {
+    finish: async (
+      jobId: string,
+      status: "ok" | "error",
+      result?: Record<string, unknown>,
+      error?: string,
+    ) => {
       const r = await this.pool.query(
         "UPDATE job_runs SET status=$1, finished_at=now(), result=$2::jsonb, error=$3 WHERE id=$4 RETURNING *",
         [status, result ? JSON.stringify(result) : null, error ?? null, jobId],
@@ -579,7 +624,9 @@ export class PostgresStore implements Store {
 
   enrichment = {
     creditsToday: async (day: string) => {
-      const r = await this.pool.query("SELECT credits FROM enrichment_usage WHERE day=$1::date", [day]);
+      const r = await this.pool.query("SELECT credits FROM enrichment_usage WHERE day=$1::date", [
+        day,
+      ]);
       return Number(r.rows[0]?.credits ?? 0);
     },
     addCredits: async (day: string, n: number) => {
@@ -623,30 +670,41 @@ export class PostgresStore implements Store {
          VALUES (COALESCE($1::uuid, gen_random_uuid()), $2,$3,$4,$5,$6)
          ON CONFLICT (entity, internal_id) DO UPDATE SET external_id=EXCLUDED.external_id, last_hash=EXCLUDED.last_hash, last_synced_at=EXCLUDED.last_synced_at
          RETURNING *`,
-        [row.id ?? null, row.entity, row.internal_id, row.external_id, row.last_hash ?? null, row.last_synced_at],
+        [
+          row.id ?? null,
+          row.entity,
+          row.internal_id,
+          row.external_id,
+          row.last_hash ?? null,
+          row.last_synced_at,
+        ],
       );
       return mapSync(r.rows[0]);
     },
     get: async (entity: string, internalId: string) => {
-      const r = await this.pool.query("SELECT * FROM external_sync WHERE entity=$1 AND internal_id=$2", [entity, internalId]);
+      const r = await this.pool.query(
+        "SELECT * FROM external_sync WHERE entity=$1 AND internal_id=$2",
+        [entity, internalId],
+      );
       return r.rows[0] ? mapSync(r.rows[0]) : undefined;
     },
   };
 
   transitions = {
     list: async (contactId: string) => {
-      const r = await this.pool.query("SELECT * FROM contact_transitions WHERE contact_id=$1 ORDER BY at", [contactId]);
-      return r.rows.map(
-        (row: Record<string, unknown>): StateTransitionRow => ({
-          id: String(row.id),
-          contact_id: String(row.contact_id),
-          from_state: row.from_state as ContactState,
-          to_state: row.to_state as ContactState,
-          actor: String(row.actor),
-          at: iso(row.at as Date) ?? "",
-          reason: (row.reason as string) ?? undefined,
-        }),
+      const r = await this.pool.query(
+        "SELECT * FROM contact_transitions WHERE contact_id=$1 ORDER BY at",
+        [contactId],
       );
+      return r.rows.map((row: Record<string, unknown>): StateTransitionRow => ({
+        id: String(row.id),
+        contact_id: String(row.contact_id),
+        from_state: row.from_state as ContactState,
+        to_state: row.to_state as ContactState,
+        actor: String(row.actor),
+        at: iso(row.at as Date) ?? "",
+        reason: (row.reason as string) ?? undefined,
+      }));
     },
   };
 }
@@ -752,7 +810,8 @@ function mapDraft(row: Record<string, unknown>): DraftRecord {
     approved_by: (row.approved_by as string) ?? undefined,
     approved_at: iso(row.approved_at as Date),
     invalidated: Boolean(row.invalidated),
-    personalization_claims: (row.personalization_claims as DraftRecord["personalization_claims"]) ?? [],
+    personalization_claims:
+      (row.personalization_claims as DraftRecord["personalization_claims"]) ?? [],
     arc_claim_ids: (row.arc_claim_ids as string[]) ?? [],
     word_count: Number(row.word_count),
     created_at: iso(row.created_at as Date) ?? "",

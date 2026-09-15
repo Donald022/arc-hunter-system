@@ -20,7 +20,9 @@ describe("misc invariants", () => {
 
   it("documents Notion views and required properties", () => {
     expect(NOTION_VIEWS).toContain("Review Queue");
-    expect(diffProperties(["Name"], REQUIRED_PROPERTIES.contacts).missing.length).toBeGreaterThan(5);
+    expect(diffProperties(["Name"], REQUIRED_PROPERTIES.contacts).missing.length).toBeGreaterThan(
+      5,
+    );
   });
 
   it("forbids auto-send from SEND_UNCERTAIN via automatic transition to SENDING", () => {

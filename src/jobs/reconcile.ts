@@ -36,7 +36,10 @@ export async function reconcile(opts: { store?: Store } = {}): Promise<{
     }
     const facts = await loadFactsCached();
     const pause = await store.pause.get();
-    await store.jobs.finish(job.id, "ok", { uncertain_resolved: resolved, facts_hash: facts.version_hash });
+    await store.jobs.finish(job.id, "ok", {
+      uncertain_resolved: resolved,
+      facts_hash: facts.version_hash,
+    });
     logger.info("reconcile complete", { run_id: job.id });
     return { run_id: job.id, uncertain_resolved: resolved, pause, facts_hash: facts.version_hash };
   } catch (err) {

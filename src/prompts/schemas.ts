@@ -11,11 +11,21 @@ export const researchOutputSchema = z.object({
     staleTitleUncorroborated: z.boolean().default(false),
   }),
   evidence: z.object({
-    dcSpecialty: z.object({ points: z.number(), reason: z.string(), url: z.string().optional() }).optional(),
-    buyerOrTenant: z.object({ points: z.number(), reason: z.string(), url: z.string().optional() }).optional(),
-    hyperscale: z.object({ points: z.number(), reason: z.string(), url: z.string().optional() }).optional(),
-    expansion: z.object({ points: z.number(), reason: z.string(), url: z.string().optional() }).optional(),
-    influence: z.object({ points: z.number(), reason: z.string(), url: z.string().optional() }).optional(),
+    dcSpecialty: z
+      .object({ points: z.number(), reason: z.string(), url: z.string().optional() })
+      .optional(),
+    buyerOrTenant: z
+      .object({ points: z.number(), reason: z.string(), url: z.string().optional() })
+      .optional(),
+    hyperscale: z
+      .object({ points: z.number(), reason: z.string(), url: z.string().optional() })
+      .optional(),
+    expansion: z
+      .object({ points: z.number(), reason: z.string(), url: z.string().optional() })
+      .optional(),
+    influence: z
+      .object({ points: z.number(), reason: z.string(), url: z.string().optional() })
+      .optional(),
     geo: z
       .object({
         kind: z.enum(["mexico", "latam", "international", "none"]),
@@ -23,7 +33,9 @@ export const researchOutputSchema = z.object({
         url: z.string().optional(),
       })
       .optional(),
-    personalization: z.object({ points: z.number(), reason: z.string(), url: z.string().optional() }).optional(),
+    personalization: z
+      .object({ points: z.number(), reason: z.string(), url: z.string().optional() })
+      .optional(),
   }),
   summary: z.string(),
   contradictions: z.array(z.string()).default([]),

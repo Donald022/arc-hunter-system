@@ -61,7 +61,9 @@ function clamp(n: number, max: number): number {
   return Math.min(max, Math.round(n));
 }
 
-function geoPoints(kind: EvidenceInput["geo"] extends infer T ? T extends { kind: infer K } ? K : never : never): number {
+function geoPoints(
+  kind: EvidenceInput["geo"] extends infer T ? (T extends { kind: infer K } ? K : never) : never,
+): number {
   if (kind === "mexico") return 7;
   if (kind === "latam" || kind === "international") return 3;
   return 0;
@@ -106,9 +108,16 @@ export function scoreCandidate(input: EvidenceInput, hardGate: HardGateInput): S
 
 export type QualificationBin = "qualified" | "review" | "disqualify";
 
-export function qualificationBin(score: ScoreBreakdown, override?: { reason: string }): QualificationBin {
+export function qualificationBin(
+  score: ScoreBreakdown,
+  override?: { reason: string },
+): QualificationBin {
   if (override?.reason) {
-    return score.hard_gate_pass ? (score.total >= REVIEW_THRESHOLD ? "qualified" : "review") : "review";
+    return score.hard_gate_pass
+      ? score.total >= REVIEW_THRESHOLD
+        ? "qualified"
+        : "review"
+      : "review";
   }
   if (!score.hard_gate_pass) return "disqualify";
   if (score.total >= QUALIFY_THRESHOLD) return "qualified";

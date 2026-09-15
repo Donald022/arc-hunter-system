@@ -43,7 +43,11 @@ export async function research(opts: ResearchOptions = {}): Promise<{
         ...(await store.evidence.forCompany(contact.company_id)),
       ];
       const knownUrls = [...new Set(evidenceRows.map((e) => e.url))];
-      const blob = [contact.evidence_summary, contact.title, ...evidenceRows.map((e) => e.quoted_text)].join("\n");
+      const blob = [
+        contact.evidence_summary,
+        contact.title,
+        ...evidenceRows.map((e) => e.quoted_text),
+      ].join("\n");
 
       let validated = heuristicFor(contact, blob);
 
@@ -81,7 +85,12 @@ export async function research(opts: ResearchOptions = {}): Promise<{
         contact.score_breakdown = validated.score;
         contact.fit_score = validated.score.total;
         await store.contacts.upsert(contact);
-        await store.contacts.setState(contact.id, "RESEARCH_REVIEW", "research", validated.reasons.join(","));
+        await store.contacts.setState(
+          contact.id,
+          "RESEARCH_REVIEW",
+          "research",
+          validated.reasons.join(","),
+        );
         review += 1;
         continue;
       }
@@ -129,7 +138,12 @@ export async function research(opts: ResearchOptions = {}): Promise<{
         qualified += 1;
       }
     }
-    await store.jobs.finish(job.id, "ok", { processed: contacts.length, qualified, review, disqualified });
+    await store.jobs.finish(job.id, "ok", {
+      processed: contacts.length,
+      qualified,
+      review,
+      disqualified,
+    });
     logger.info("research complete", { run_id: job.id });
     return { run_id: job.id, processed: contacts.length, qualified, review, disqualified };
   } catch (err) {
@@ -148,8 +162,11 @@ function heuristicFor(contact: ContactRecord, blob: string) {
   const lower = blob.toLowerCase();
   const isGenericCre =
     contact.name === FIXTURE_CONTACTS.mexicoGeneric.name ||
-    (lower.includes("residential") && !lower.includes("data-center") && !lower.includes("data center"));
-  const isVaBroker = contact.name === FIXTURE_CONTACTS.vaBroker.name || lower.includes("tenant representation");
+    (lower.includes("residential") &&
+      !lower.includes("data-center") &&
+      !lower.includes("data center"));
+  const isVaBroker =
+    contact.name === FIXTURE_CONTACTS.vaBroker.name || lower.includes("tenant representation");
   const hasDc = /data[- ]center|hyperscale|wholesale|mw\b|occupier/.test(lower);
 
   const hard: HardGateInput = {
@@ -169,9 +186,12 @@ function heuristicFor(contact: ContactRecord, blob: string) {
           url: "https://example-capital-advisors.test/practices/data-centers",
         },
         buyerOrTenant: {
-          points: /occupier|tenant representation|procur|wholesale|capacity|partnership|introduc/.test(lower)
-            ? 22
-            : 8,
+          points:
+            /occupier|tenant representation|procur|wholesale|capacity|partnership|introduc/.test(
+              lower,
+            )
+              ? 22
+              : 8,
           reason: "buyer path",
           url: "https://example-capital-advisors.test/practices/data-centers",
         },

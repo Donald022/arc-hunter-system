@@ -2,11 +2,7 @@ import { createHash } from "node:crypto";
 import { getConfig } from "../config.ts";
 import { getStore } from "../db/pool.ts";
 import type { Store } from "../db/types.ts";
-import {
-  senderCompliance,
-  validateArcClaims,
-  type ApprovedFactsBundle,
-} from "../domain/facts.ts";
+import { senderCompliance, validateArcClaims, type ApprovedFactsBundle } from "../domain/facts.ts";
 import { loadFactsCached } from "./factsLoader.ts";
 import { LlmAdapter } from "../integrations/llm.ts";
 import { draftSystemPrompt, type DraftLlmOutput } from "../prompts/schemas.ts";
@@ -38,9 +34,15 @@ export function approvalHash(input: {
 }): string {
   return createHash("sha256")
     .update(
-      [input.draftId, String(input.version), input.factVersion, input.email, input.sender, input.subject, input.body].join(
-        "|",
-      ),
+      [
+        input.draftId,
+        String(input.version),
+        input.factVersion,
+        input.email,
+        input.sender,
+        input.subject,
+        input.body,
+      ].join("|"),
     )
     .digest("hex");
 }
@@ -70,15 +72,19 @@ export function validateDraftOutput(
   const wc = wordCount(out.body, footer);
   if (wc < MIN_WORDS || wc > MAX_WORDS) reasons.push(`word_count:${wc}`);
   for (const p of out.personalization_claims) {
-    if (!evidenceUrls.includes(p.evidence_url)) reasons.push(`personalization_uncited:${p.evidence_url}`);
+    if (!evidenceUrls.includes(p.evidence_url))
+      reasons.push(`personalization_uncited:${p.evidence_url}`);
     if (!out.body.includes(p.text) && p.text) reasons.push(`personalization_not_in_body`);
   }
   const banned = [/nda/i, /calendar/i, /guaranteed/i, /shovel/i, /we represent/i];
-  for (const re of banned) if (re.test(out.body) || re.test(out.subject)) reasons.push(`banned:${re.source}`);
+  for (const re of banned)
+    if (re.test(out.body) || re.test(out.subject)) reasons.push(`banned:${re.source}`);
   return { ok: reasons.length === 0, reasons };
 }
 
-export async function draft(opts: { limit?: number; actor?: string; store?: Store; llm?: LlmAdapter } = {}): Promise<{
+export async function draft(
+  opts: { limit?: number; actor?: string; store?: Store; llm?: LlmAdapter } = {},
+): Promise<{
   run_id: string;
   drafted: number;
   fact_review: number;
@@ -106,7 +112,12 @@ export async function draft(opts: { limit?: number; actor?: string; store?: Stor
         continue;
       }
       if (!compliance.ok) {
-        await store.contacts.setState(contact.id, "FACT_REVIEW", "draft", compliance.missing.join(","));
+        await store.contacts.setState(
+          contact.id,
+          "FACT_REVIEW",
+          "draft",
+          compliance.missing.join(","),
+        );
         fact_review += 1;
         continue;
       }
@@ -114,7 +125,10 @@ export async function draft(opts: { limit?: number; actor?: string; store?: Stor
       const evidence = await store.evidence.forContact(contact.id);
       const urls = evidence.map((e) => e.url);
       const user = JSON.stringify({
-        approved_external_facts: { version: facts.version_hash, wording: facts.facts.filter((f) => f.can_use_in_first_touch) },
+        approved_external_facts: {
+          version: facts.version_hash,
+          wording: facts.facts.filter((f) => f.can_use_in_first_touch),
+        },
         contact: {
           name: "{{name}}",
           title: contact.title,
@@ -122,7 +136,11 @@ export async function draft(opts: { limit?: number; actor?: string; store?: Stor
           email: "{{email}}",
           role: contact.role,
         },
-        evidence: evidence.map((e) => ({ url: e.url, date: e.published_at, quote: e.quoted_text.slice(0, 200) })),
+        evidence: evidence.map((e) => ({
+          url: e.url,
+          date: e.published_at,
+          quote: e.quoted_text.slice(0, 200),
+        })),
         reason_for_contact: contact.evidence_summary,
         direct_buyer_potential: contact.direct_buyer_potential,
         connection_potential: contact.connection_potential,

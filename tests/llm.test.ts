@@ -25,7 +25,10 @@ const req = {
 describe("hosted LLM adapter", () => {
   it("rejects real-contact inputs on the unpaid tier", async () => {
     const store = new MemoryStore();
-    const llm = new LlmAdapter(store, cfg({ LLM_BILLING_TIER: "unpaid", LLM_LIVE_ENABLED: true, LLM_PROVIDER: "gemini" }));
+    const llm = new LlmAdapter(
+      store,
+      cfg({ LLM_BILLING_TIER: "unpaid", LLM_LIVE_ENABLED: true, LLM_PROVIDER: "gemini" }),
+    );
     const res = await llm.completeResearch(req);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe("unpaid_tier");
@@ -34,7 +37,14 @@ describe("hosted LLM adapter", () => {
   it("blocks new calls after the daily application budget is spent", async () => {
     const store = new MemoryStore();
     await store.llm.add(new Date().toISOString().slice(0, 10), 0, 0, 0, 0.2);
-    const llm = new LlmAdapter(store, cfg({ DAILY_LLM_USD_CAP: 0.2, LLM_RESERVED_INPUT_TOKENS: 8000, LLM_RESERVED_OUTPUT_TOKENS: 1500 }));
+    const llm = new LlmAdapter(
+      store,
+      cfg({
+        DAILY_LLM_USD_CAP: 0.2,
+        LLM_RESERVED_INPUT_TOKENS: 8000,
+        LLM_RESERVED_OUTPUT_TOKENS: 1500,
+      }),
+    );
     const res = await llm.completeResearch(req);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe("budget_exhausted");
@@ -42,14 +52,14 @@ describe("hosted LLM adapter", () => {
 
   it("parks work on provider 429/quota without bypassing the budget", async () => {
     const store = new MemoryStore();
-    const llm = new LlmAdapter(
-      store,
-      cfg({ LLM_PROVIDER: "fixture" }),
-      () => {
-        throw new Error("429 quota");
-      },
-    );
-    const res = await llm.completeResearch({ ...req, containsRealContact: false, containsNonpublicArcFacts: false });
+    const llm = new LlmAdapter(store, cfg({ LLM_PROVIDER: "fixture" }), () => {
+      throw new Error("429 quota");
+    });
+    const res = await llm.completeResearch({
+      ...req,
+      containsRealContact: false,
+      containsNonpublicArcFacts: false,
+    });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe("quota");
     const usage = await store.llm.getDay(new Date().toISOString().slice(0, 10));

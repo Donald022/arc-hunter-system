@@ -33,11 +33,20 @@ describe("dashboard and pause controls", () => {
     const store = useTestStore();
     await seedDefaultCampaigns(store);
     const app = await buildApp();
-    const unauth = await app.inject({ method: "POST", url: "/dashboard/pause", payload: { which: "discovery", paused: "true" } });
+    const unauth = await app.inject({
+      method: "POST",
+      url: "/dashboard/pause",
+      payload: { which: "discovery", paused: "true" },
+    });
     expect([302, 401, 403]).toContain(unauth.statusCode);
 
     const cookie = await login(app);
-    const csrf = await app.inject({ method: "POST", url: "/dashboard/pause", headers: { cookie }, payload: { which: "discovery", paused: "true", _csrf: "nope" } });
+    const csrf = await app.inject({
+      method: "POST",
+      url: "/dashboard/pause",
+      headers: { cookie },
+      payload: { which: "discovery", paused: "true", _csrf: "nope" },
+    });
     expect(csrf.statusCode).toBe(403);
     await app.close();
   });
@@ -47,7 +56,11 @@ describe("dashboard and pause controls", () => {
     await seedDefaultCampaigns(store);
     const app = await buildApp();
     const cookie = await login(app);
-    const page = await app.inject({ method: "GET", url: "/dashboard/searches", headers: { cookie } });
+    const page = await app.inject({
+      method: "GET",
+      url: "/dashboard/searches",
+      headers: { cookie },
+    });
     const csrf = page.body.match(/name="_csrf" value="([^"]+)"/)?.[1];
     const before = await store.campaigns.get("camp-broker");
     const res = await app.inject({
@@ -77,11 +90,15 @@ describe("dashboard and pause controls", () => {
     const broker = await store.campaigns.get("camp-broker");
     await store.campaigns.upsert({ ...broker!, enabled: false, search_terms: ["only-this-term"] });
     await discover({ hunter: "broker", dryRun: false, store });
-    expect((await store.contacts.list()).filter((c) => c.hunter_tags.includes("broker"))).toHaveLength(0);
+    expect(
+      (await store.contacts.list()).filter((c) => c.hunter_tags.includes("broker")),
+    ).toHaveLength(0);
 
     await store.campaigns.upsert({ ...broker!, enabled: true, search_terms: ["only-this-term"] });
     await setPaused("discovery", true, "test", store);
-    await expect(discover({ hunter: "broker", dryRun: false, store })).rejects.toThrow(/discovery_paused/);
+    await expect(discover({ hunter: "broker", dryRun: false, store })).rejects.toThrow(
+      /discovery_paused/,
+    );
 
     await setPaused("outbound", true, "test", store);
     const pause = await store.pause.get();

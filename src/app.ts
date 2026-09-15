@@ -35,12 +35,16 @@ export async function buildApp() {
 
   app.post("/internal/jobs/:job", async (req, reply) => {
     const auth = req.headers.authorization ?? "";
-    if (auth !== `Bearer ${cfg.INTERNAL_JOB_TOKEN}`) return reply.code(401).send({ error: "unauthorized" });
+    if (auth !== `Bearer ${cfg.INTERNAL_JOB_TOKEN}`)
+      return reply.code(401).send({ error: "unauthorized" });
     const job = (req.params as { job: string }).job;
     const body = (req.body ?? {}) as { hunter?: string; limit?: number };
     try {
       if (job === "discover") {
-        const hunter = body.hunter && HUNTERS.includes(body.hunter as Hunter) ? (body.hunter as Hunter) : undefined;
+        const hunter =
+          body.hunter && HUNTERS.includes(body.hunter as Hunter)
+            ? (body.hunter as Hunter)
+            : undefined;
         return await discover({ hunter, store, actor: "internal" });
       }
       if (job === "research") return await research({ limit: body.limit, store });
@@ -49,7 +53,9 @@ export async function buildApp() {
       if (job === "replies") return await replies({ store });
       return reply.code(404).send({ error: "unknown_job" });
     } catch (err) {
-      logger.error("internal job failed", { error: err instanceof Error ? err.message : String(err) });
+      logger.error("internal job failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return reply.code(500).send({ error: err instanceof Error ? err.message : String(err) });
     }
   });
@@ -62,9 +68,10 @@ export async function buildApp() {
     const verified = verifySlackSignature({
       signingSecret: cfg.SLACK_SIGNING_SECRET,
       timestamp: ts,
-      rawBody: typeof req.body === "object" && req.body && "payload" in (req.body as object)
-        ? new URLSearchParams(req.body as Record<string, string>).toString()
-        : raw,
+      rawBody:
+        typeof req.body === "object" && req.body && "payload" in (req.body as object)
+          ? new URLSearchParams(req.body as Record<string, string>).toString()
+          : raw,
       signature: sig,
     });
     if (!verified.ok) return reply.code(401).send({ error: verified.reason });
@@ -73,7 +80,9 @@ export async function buildApp() {
       typeof req.body === "object" && req.body && "payload" in (req.body as object)
         ? JSON.parse(String((req.body as { payload: string }).payload))
         : req.body;
-    void handleSlackAction(payloadRaw).catch((err) => logger.error("slack action failed", { error: String(err) }));
+    void handleSlackAction(payloadRaw).catch((err) =>
+      logger.error("slack action failed", { error: String(err) }),
+    );
   });
 
   await registerDashboard(app, store);

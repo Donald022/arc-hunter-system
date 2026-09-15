@@ -12,8 +12,15 @@ async function main() {
   );
   resetConfigCache();
   const raw = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
-  const hasTokenLine = raw.split(/\r?\n/).some((l) => l.startsWith("NOTION_TOKEN=") && l.length > "NOTION_TOKEN=".length);
-  console.log(JSON.stringify({ has_notion_token_line: hasTokenLine, token_line_length: raw.split(/\r?\n/).find((l) => l.startsWith("NOTION_TOKEN="))?.length ?? 0 }));
+  const hasTokenLine = raw
+    .split(/\r?\n/)
+    .some((l) => l.startsWith("NOTION_TOKEN=") && l.length > "NOTION_TOKEN=".length);
+  console.log(
+    JSON.stringify({
+      has_notion_token_line: hasTokenLine,
+      token_line_length: raw.split(/\r?\n/).find((l) => l.startsWith("NOTION_TOKEN="))?.length ?? 0,
+    }),
+  );
   const cfg = loadConfig();
   console.log(JSON.stringify({ loaded_token_length: cfg.NOTION_TOKEN?.length ?? 0 }));
   if (!cfg.NOTION_TOKEN) {

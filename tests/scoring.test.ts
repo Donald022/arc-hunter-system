@@ -6,13 +6,25 @@ describe("scoring", () => {
   it("qualifies a Northern Virginia tenant-rep with hyperscale leases and no Mexico history", () => {
     const result = researchFromEvidence(
       {
-        dcSpecialty: { points: 25, reason: "official DC practice bio", url: "https://example.test/bio" },
-        buyerOrTenant: { points: 25, reason: "occupier representation", url: "https://example.test/bio" },
+        dcSpecialty: {
+          points: 25,
+          reason: "official DC practice bio",
+          url: "https://example.test/bio",
+        },
+        buyerOrTenant: {
+          points: 25,
+          reason: "occupier representation",
+          url: "https://example.test/bio",
+        },
         hyperscale: { points: 15, reason: "30MW+ assignments", url: "https://example.test/deals" },
         expansion: { points: 8, reason: "recent lease", url: "https://example.test/deals" },
         influence: { points: 8, reason: "MD" },
         geo: { kind: "none" },
-        personalization: { points: 4, reason: "named transactions", url: "https://example.test/deals" },
+        personalization: {
+          points: 4,
+          reason: "named transactions",
+          url: "https://example.test/deals",
+        },
       },
       {
         hasDcDemandOrOccupier: true,

@@ -25,12 +25,10 @@ function loadDotEnv(): void {
 
 loadDotEnv();
 
-const bool = z
-  .union([z.boolean(), z.string()])
-  .transform((v) => {
-    if (typeof v === "boolean") return v;
-    return ["1", "true", "yes", "on"].includes(v.trim().toLowerCase());
-  });
+const bool = z.union([z.boolean(), z.string()]).transform((v) => {
+  if (typeof v === "boolean") return v;
+  return ["1", "true", "yes", "on"].includes(v.trim().toLowerCase());
+});
 
 const optionalString = z
   .string()
@@ -84,7 +82,10 @@ export const configSchema = z.object({
   LLM_PROVIDER: z.enum(["gemini", "fixture"]).default("fixture"),
   LLM_MODEL: z.string().default("gemini-3.5-flash-lite"),
   LLM_API_KEY: optionalString,
-  LLM_BILLING_TIER: z.enum(["paid", "unpaid", ""]).optional().transform((v) => v || undefined),
+  LLM_BILLING_TIER: z
+    .enum(["paid", "unpaid", ""])
+    .optional()
+    .transform((v) => v || undefined),
   LLM_LIVE_ENABLED: bool.default(false),
   DAILY_LLM_USD_CAP: z.coerce.number().nonnegative().default(0.2),
   DAILY_LLM_REQUEST_CAP: z.coerce.number().int().nonnegative().default(50),

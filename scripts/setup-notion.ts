@@ -1,6 +1,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { applyHunterDatabases, inspectNotionParent, REQUIRED_PROPERTIES, NOTION_VIEWS } from "../src/integrations/notion.ts";
+import {
+  applyHunterDatabases,
+  inspectNotionParent,
+  REQUIRED_PROPERTIES,
+  NOTION_VIEWS,
+} from "../src/integrations/notion.ts";
 import { getConfig } from "../src/config.ts";
 
 const apply = process.argv.includes("--apply");
@@ -54,7 +59,18 @@ async function main() {
   }
   const result = await applyHunterDatabases();
   upsertEnv(result.env);
-  console.log(JSON.stringify({ applied: true, created: result.created, skipped: result.skipped, env_keys: Object.keys(result.env) }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        applied: true,
+        created: result.created,
+        skipped: result.skipped,
+        env_keys: Object.keys(result.env),
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 main().catch((err) => {

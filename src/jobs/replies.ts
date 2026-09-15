@@ -42,7 +42,11 @@ export async function replies(opts: { store?: Store; actor?: string } = {}): Pro
           contact.do_not_contact = true;
           await store.contacts.upsert(contact);
           await store.contacts.setState(contact.id, "DNC", opts.actor ?? "replies", "opt_out");
-          await store.suppression.add({ email: contact.work_email, reason: "opt_out", actor: "replies" });
+          await store.suppression.add({
+            email: contact.work_email,
+            reason: "opt_out",
+            actor: "replies",
+          });
           opt += 1;
           inc("opt_outs");
           continue;
@@ -71,7 +75,12 @@ export async function replies(opts: { store?: Store; actor?: string } = {}): Pro
         inc("replies");
       }
     }
-    await store.jobs.finish(job.id, "ok", { replies: replyCount, opt_outs: opt, bounces: bounce, review });
+    await store.jobs.finish(job.id, "ok", {
+      replies: replyCount,
+      opt_outs: opt,
+      bounces: bounce,
+      review,
+    });
     logger.info("replies complete", { run_id: job.id });
     return { run_id: job.id, replies: replyCount, opt_outs: opt, bounces: bounce, review };
   } catch (err) {

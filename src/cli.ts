@@ -25,7 +25,8 @@ async function main() {
   const store = useMemoryStore();
   await seedDefaultCampaigns(store);
   const hunterArg = arg("--hunter");
-  const hunter = hunterArg && HUNTERS.includes(hunterArg as Hunter) ? (hunterArg as Hunter) : undefined;
+  const hunter =
+    hunterArg && HUNTERS.includes(hunterArg as Hunter) ? (hunterArg as Hunter) : undefined;
   const limit = arg("--limit") ? Number(arg("--limit")) : undefined;
   const dryRun = flag("--dry-run") || getConfig().DRY_RUN;
 
@@ -74,7 +75,9 @@ async function main() {
       draft: drafted,
       facts: {
         hash: facts.version_hash,
-        can_use_in_first_touch: facts.facts.filter((f: { can_use_in_first_touch: boolean }) => f.can_use_in_first_touch).length,
+        can_use_in_first_touch: facts.facts.filter(
+          (f: { can_use_in_first_touch: boolean }) => f.can_use_in_first_touch,
+        ).length,
         sender_ready: Boolean(facts.legal_sender_entity && facts.postal_address),
       },
       note: "Fixture dry run. No live email, Notion write, or paid API call.",

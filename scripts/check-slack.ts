@@ -39,7 +39,9 @@ async function main() {
     process.exit(1);
   }
   if (cfg.SLACK_CHANNEL_ID) {
-    const ch = await slack("conversations.info", cfg.SLACK_BOT_TOKEN, { channel: cfg.SLACK_CHANNEL_ID });
+    const ch = await slack("conversations.info", cfg.SLACK_BOT_TOKEN, {
+      channel: cfg.SLACK_CHANNEL_ID,
+    });
     const channel = ch.channel as { name?: string; is_member?: boolean } | undefined;
     report.channel_ok = ch.ok === true;
     report.channel_name = channel?.name;

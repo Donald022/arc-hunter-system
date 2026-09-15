@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { containsRestrictedClaim, loadFactsFromFile, validateArcClaims } from "../src/domain/facts.ts";
+import {
+  containsRestrictedClaim,
+  loadFactsFromFile,
+  validateArcClaims,
+} from "../src/domain/facts.ts";
 import { isApprovalValid, approvalHash } from "../src/jobs/draft.ts";
 import { approvedFacts } from "./helpers.ts";
 import { resetFactsCache } from "../src/jobs/factsLoader.ts";
@@ -9,7 +13,9 @@ describe("approved facts", () => {
     resetFactsCache();
     const facts = loadFactsFromFile();
     expect(facts.legal_sender_entity).toBe("");
-    expect(facts.facts.every((f) => f.can_use_in_first_touch === false || !f.approved_by)).toBe(true);
+    expect(facts.facts.every((f) => f.can_use_in_first_touch === false || !f.approved_by)).toBe(
+      true,
+    );
     expect(facts.facts[0]?.can_use_in_first_touch).toBe(false);
   });
 

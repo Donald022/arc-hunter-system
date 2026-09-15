@@ -133,20 +133,20 @@ Import `n8n/daily-jobs.json`. Put `ARC_HUNTER_BASE_URL` and `ARC_INTERNAL_JOB_TO
 
 ## 9. Remaining blockers (do not guess)
 
-| Item | Status |
-|---|---|
-| Legal sender entity (PDF “NOA Intelligence, Inc.” vs ARC) | **Unverified — Donald must choose** |
-| Approved sender name/title, reply-to, postal address, opt-out wording | Blank; sending disabled |
-| Every MW, land, RFS, cooling, fiber, BTS, financing claim | Blank / `can_use_in_first_touch=false`. `data-center-specs (2).pdf` was **not** treated as externally approved |
-| Notion 03 — Anchor Tenant data-source IDs | Not mapped in this build (inspect script ready) |
-| Slack workspace, channel, approver IDs | Missing |
-| Gmail OAuth refresh token | Missing |
-| Gemini paid project + live price check | Missing; `LLM_LIVE_ENABLED=false` |
-| Apollo | `APOLLO_ENABLED=false`; do not buy credits |
-| Main vs dev Supabase | Dev project is the only database this build is allowed to touch; main project stays untouched until you point `DATABASE_URL` at it |
-| Supabase advisors on empty `public` schema | `public.rls_auto_enable()` is executable by anon/authenticated (pre-existing project function, not ARC tables). ARC tables will live in private `arc` with RLS and no policies. |
-| Session pooler connection string | Still needed to run `npm run migrate`; MCP cannot supply the database password |
-| Non-US recipient email rules | Review at go-live (CAN-SPAM is US baseline) |
+| Item                                                                  | Status                                                                                                                                                                          |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Legal sender entity (PDF “NOA Intelligence, Inc.” vs ARC)             | **Unverified — Donald must choose**                                                                                                                                             |
+| Approved sender name/title, reply-to, postal address, opt-out wording | Blank; sending disabled                                                                                                                                                         |
+| Every MW, land, RFS, cooling, fiber, BTS, financing claim             | Blank / `can_use_in_first_touch=false`. `data-center-specs (2).pdf` was **not** treated as externally approved                                                                  |
+| Notion 03 — Anchor Tenant data-source IDs                             | Not mapped in this build (inspect script ready)                                                                                                                                 |
+| Slack workspace, channel, approver IDs                                | Missing                                                                                                                                                                         |
+| Gmail OAuth refresh token                                             | Missing                                                                                                                                                                         |
+| Gemini paid project + live price check                                | Missing; `LLM_LIVE_ENABLED=false`                                                                                                                                               |
+| Apollo                                                                | `APOLLO_ENABLED=false`; do not buy credits                                                                                                                                      |
+| Main vs dev Supabase                                                  | Dev project is the only database this build is allowed to touch; main project stays untouched until you point `DATABASE_URL` at it                                              |
+| Supabase advisors on empty `public` schema                            | `public.rls_auto_enable()` is executable by anon/authenticated (pre-existing project function, not ARC tables). ARC tables will live in private `arc` with RLS and no policies. |
+| Session pooler connection string                                      | Still needed to run `npm run migrate`; MCP cannot supply the database password                                                                                                  |
+| Non-US recipient email rules                                          | Review at go-live (CAN-SPAM is US baseline)                                                                                                                                     |
 
 ## 10. Build verification (this Cursor session)
 
@@ -168,7 +168,7 @@ Supabase advisors on the **empty** `public` schema (no ARC tables applied yet): 
 
 **Service:** https://arc-hunter-production.up.railway.app  
 **Status:** ✓ Deployed and running  
-**Branch:** Connected to `Donald022/arc-hunter-system` repository  
+**Branch:** Connected to `Donald022/arc-hunter-system` repository
 
 ### Available endpoints:
 

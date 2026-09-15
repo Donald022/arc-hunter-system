@@ -43,7 +43,9 @@ export function assertTransition(from: ContactState, to: ContactState): void {
 }
 
 export function forbidsAutoSend(state: ContactState, doNotContact = false): boolean {
-  return doNotContact || TERMINAL_NO_AUTO_SEND.has(state) || state === "SKIPPED" || state === "SENDING";
+  return (
+    doNotContact || TERMINAL_NO_AUTO_SEND.has(state) || state === "SKIPPED" || state === "SENDING"
+  );
 }
 
 export function isManualRescueAllowed(state: ContactState): boolean {

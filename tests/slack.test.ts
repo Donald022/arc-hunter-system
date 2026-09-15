@@ -70,7 +70,15 @@ describe("slack approval", () => {
     await seedDraft(store, contact, facts);
     const mailbox = new SyntheticMailbox();
     setGmailPort(mailbox);
-    const payload = { user: { id: "U123" }, actions: [{ action_id: "approve_send" as const, value: (await store.drafts.latestForContact(contact.id))!.id }] };
+    const payload = {
+      user: { id: "U123" },
+      actions: [
+        {
+          action_id: "approve_send" as const,
+          value: (await store.drafts.latestForContact(contact.id))!.id,
+        },
+      ],
+    };
     const a = await handleSlackAction(payload, { store, replayKey: "click-a" });
     const b = await handleSlackAction(payload, { store, replayKey: "click-b" });
     expect(a.sent || b.sent).toBe(true);
@@ -80,9 +88,14 @@ describe("slack approval", () => {
   it("verifies Slack signatures and expired timestamps", () => {
     const raw = "payload=%7B%7D";
     const ts = String(Math.floor(Date.now() / 1000));
-    expect(verifySlackSignature({ signingSecret: SECRET, timestamp: ts, rawBody: raw, signature: sign(raw, ts) }).ok).toBe(
-      true,
-    );
+    expect(
+      verifySlackSignature({
+        signingSecret: SECRET,
+        timestamp: ts,
+        rawBody: raw,
+        signature: sign(raw, ts),
+      }).ok,
+    ).toBe(true);
     expect(
       verifySlackSignature({
         signingSecret: SECRET,

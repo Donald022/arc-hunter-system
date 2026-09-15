@@ -23,7 +23,8 @@ export function isSsrfSafeUrl(raw: string): { ok: true; url: URL } | { ok: false
   } catch {
     return { ok: false, reason: "invalid_url" };
   }
-  if (!["http:", "https:"].includes(url.protocol)) return { ok: false, reason: "unsupported_protocol" };
+  if (!["http:", "https:"].includes(url.protocol))
+    return { ok: false, reason: "unsupported_protocol" };
   const host = url.hostname.toLowerCase();
   if (BLOCKED_HOSTS.has(host)) return { ok: false, reason: "blocked_host" };
   if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.|127\.)/.test(host)) {
@@ -32,7 +33,9 @@ export function isSsrfSafeUrl(raw: string): { ok: true; url: URL } | { ok: false
   return { ok: true, url };
 }
 
-export async function fetchText(url: string): Promise<{ ok: true; text: string } | { ok: false; reason: string }> {
+export async function fetchText(
+  url: string,
+): Promise<{ ok: true; text: string } | { ok: false; reason: string }> {
   const safe = isSsrfSafeUrl(url);
   if (!safe.ok) return safe;
   const cfg = getConfig();
@@ -41,7 +44,10 @@ export async function fetchText(url: string): Promise<{ ok: true; text: string }
   try {
     const res = await fetch(safe.url, {
       signal: ctrl.signal,
-      headers: { "user-agent": cfg.SOURCE_USER_AGENT, accept: "text/html,application/rss+xml,application/xml,text/xml,text/csv" },
+      headers: {
+        "user-agent": cfg.SOURCE_USER_AGENT,
+        accept: "text/html,application/rss+xml,application/xml,text/xml,text/csv",
+      },
       redirect: "follow",
     });
     if (!res.ok) return { ok: false, reason: `http_${res.status}` };
@@ -54,7 +60,9 @@ export async function fetchText(url: string): Promise<{ ok: true; text: string }
   }
 }
 
-function signal(partial: Omit<Signal, "raw_content_hash" | "observed_at" | "extractor_version"> & Partial<Signal>): Signal {
+function signal(
+  partial: Omit<Signal, "raw_content_hash" | "observed_at" | "extractor_version"> & Partial<Signal>,
+): Signal {
   const observed_at = partial.observed_at ?? new Date().toISOString();
   const extractor_version = partial.extractor_version ?? "v1";
   const raw_content_hash = contentHash([
@@ -94,7 +102,9 @@ export function parseRss(xml: string, source: SourceDef): Signal[] {
 }
 
 export function parseHtmlList(html: string, source: SourceDef): Signal[] {
-  const titles = [...html.matchAll(/<h[123][^>]*>([\s\S]*?)<\/h[123]>/gi)].map((m) => stripTags(m[1] ?? ""));
+  const titles = [...html.matchAll(/<h[123][^>]*>([\s\S]*?)<\/h[123]>/gi)].map((m) =>
+    stripTags(m[1] ?? ""),
+  );
   if (!titles.length) {
     return [
       signal({
@@ -158,7 +168,9 @@ export function parseCsv(text: string, hunter: Hunter): Signal[] {
   return out;
 }
 
-export async function parseSource(source: SourceDef): Promise<{ signals: Signal[]; error?: string; needsSetup?: boolean }> {
+export async function parseSource(
+  source: SourceDef,
+): Promise<{ signals: Signal[]; error?: string; needsSetup?: boolean }> {
   if (source.parser === "fixture") {
     return { signals: fixtureSignals(source.url, source.hunter) };
   }
@@ -166,7 +178,10 @@ export async function parseSource(source: SourceDef): Promise<{ signals: Signal[
     if (source.url.startsWith("file://")) {
       const path = source.url.replace("file://", "");
       try {
-        const text = readFileSync(resolve(process.cwd(), path.startsWith("fixtures") ? path : path), "utf8");
+        const text = readFileSync(
+          resolve(process.cwd(), path.startsWith("fixtures") ? path : path),
+          "utf8",
+        );
         return { signals: parseCsv(text, source.hunter) };
       } catch (err) {
         return { signals: [], error: err instanceof Error ? err.message : "csv_read_failed" };
@@ -178,7 +193,8 @@ export async function parseSource(source: SourceDef): Promise<{ signals: Signal[
   }
   if (source.parser === "rss") {
     const fetched = await fetchText(source.url);
-    if (!fetched.ok) return { signals: [], error: fetched.reason, needsSetup: fetched.reason.startsWith("http_") };
+    if (!fetched.ok)
+      return { signals: [], error: fetched.reason, needsSetup: fetched.reason.startsWith("http_") };
     return { signals: parseRss(fetched.text, source) };
   }
   if (source.parser === "html" || source.parser === "page") {
@@ -195,7 +211,10 @@ function textBetween(block: string, tag: string): string | undefined {
 }
 
 function stripTags(s: string): string {
-  return s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return s
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function hostname(url: string): string {

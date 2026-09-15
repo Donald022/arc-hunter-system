@@ -37,7 +37,11 @@ export function loadRegistry(path = resolve(process.cwd(), "config/sources.yml")
   return registrySchema.parse(raw);
 }
 
-export function sourcesForHunter(registry: SourceRegistry, hunter: Hunter, enabledOnly = true): SourceDef[] {
+export function sourcesForHunter(
+  registry: SourceRegistry,
+  hunter: Hunter,
+  enabledOnly = true,
+): SourceDef[] {
   return registry.sources.filter((s) => s.hunter === hunter && (!enabledOnly || s.enabled));
 }
 

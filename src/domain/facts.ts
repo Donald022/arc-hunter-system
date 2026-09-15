@@ -61,13 +61,18 @@ export function hashFacts(bundle: Omit<ApprovedFactsBundle, "version_hash" | "lo
     .digest("hex");
 }
 
-export function loadFactsFromObject(raw: unknown, loadedAt = new Date().toISOString()): ApprovedFactsBundle {
+export function loadFactsFromObject(
+  raw: unknown,
+  loadedAt = new Date().toISOString(),
+): ApprovedFactsBundle {
   const parsed = factsBundleSchema.parse(raw);
   const version_hash = hashFacts(parsed);
   return { ...parsed, version_hash, loaded_at: loadedAt };
 }
 
-export function loadFactsFromFile(path = resolve(process.cwd(), "config/arc_external_facts.example.json")): ApprovedFactsBundle {
+export function loadFactsFromFile(
+  path = resolve(process.cwd(), "config/arc_external_facts.example.json"),
+): ApprovedFactsBundle {
   const raw = JSON.parse(readFileSync(path, "utf8"));
   return loadFactsFromObject(raw);
 }
@@ -135,7 +140,11 @@ export function validateArcClaims(
   const factById = new Map(bundle.facts.map((f) => [f.id, f]));
   for (const id of claimIds) {
     const fact = factById.get(id);
-    if (fact?.approved_wording && !body.includes(fact.approved_wording) && fact.can_use_in_first_touch) {
+    if (
+      fact?.approved_wording &&
+      !body.includes(fact.approved_wording) &&
+      fact.can_use_in_first_touch
+    ) {
       reasons.push(`wording_not_in_body:${id}`);
     }
   }

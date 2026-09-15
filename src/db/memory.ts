@@ -53,7 +53,9 @@ export class MemoryStore implements Store {
   transitionsList: StateTransitionRow[] = [];
 
   companies = {
-    upsert: async (input: Omit<CompanyRecord, "id" | "created_at" | "updated_at"> & { id?: string }) => {
+    upsert: async (
+      input: Omit<CompanyRecord, "id" | "created_at" | "updated_at"> & { id?: string },
+    ) => {
       const domain = normalizeDomain(input.domain);
       if (domain) {
         const existing = [...this.companiesMap.values()].find((c) => c.domain === domain);
@@ -63,7 +65,9 @@ export class MemoryStore implements Store {
             ...input,
             id: existing.id,
             domain,
-            source_urls: Array.from(new Set([...existing.source_urls, ...(input.source_urls ?? [])])),
+            source_urls: Array.from(
+              new Set([...existing.source_urls, ...(input.source_urls ?? [])]),
+            ),
             updated_at: nowIso(),
           };
           this.companiesMap.set(existing.id, merged);
@@ -89,7 +93,9 @@ export class MemoryStore implements Store {
   };
 
   contacts = {
-    upsert: async (input: Omit<ContactRecord, "id" | "created_at" | "updated_at"> & { id?: string }) => {
+    upsert: async (
+      input: Omit<ContactRecord, "id" | "created_at" | "updated_at"> & { id?: string },
+    ) => {
       const email = normalizeEmail(input.work_email);
       const profile = normalizeProfileUrl(input.profile_url);
       if (email) {
@@ -139,7 +145,9 @@ export class MemoryStore implements Store {
           id: existingSameEmployer.id,
           work_email: email ?? existingSameEmployer.work_email,
           profile_url: profile ?? existingSameEmployer.profile_url,
-          hunter_tags: Array.from(new Set([...existingSameEmployer.hunter_tags, ...input.hunter_tags])),
+          hunter_tags: Array.from(
+            new Set([...existingSameEmployer.hunter_tags, ...input.hunter_tags]),
+          ),
           state: existingSameEmployer.state,
           do_not_contact: existingSameEmployer.do_not_contact || Boolean(input.do_not_contact),
           updated_at: nowIso(),
@@ -203,8 +211,13 @@ export class MemoryStore implements Store {
   };
 
   signals = {
-    insert: async (signal: import("../domain/types.ts").Signal, extras?: { company_id?: string; contact_id?: string }) => {
-      const existing = [...this.signalsMap.values()].find((s) => s.raw_content_hash === signal.raw_content_hash);
+    insert: async (
+      signal: import("../domain/types.ts").Signal,
+      extras?: { company_id?: string; contact_id?: string },
+    ) => {
+      const existing = [...this.signalsMap.values()].find(
+        (s) => s.raw_content_hash === signal.raw_content_hash,
+      );
       if (existing) return clone(existing);
       const row: SignalRow = {
         id: id("sg"),
@@ -228,7 +241,8 @@ export class MemoryStore implements Store {
       this.signalsMap.set(row.id, row);
       return clone(row);
     },
-    byHash: async (hash: string) => clone([...this.signalsMap.values()].find((s) => s.raw_content_hash === hash)),
+    byHash: async (hash: string) =>
+      clone([...this.signalsMap.values()].find((s) => s.raw_content_hash === hash)),
     list: async () => clone([...this.signalsMap.values()]),
   };
 
@@ -240,7 +254,8 @@ export class MemoryStore implements Store {
       this.evidenceMap.set(rec.id, rec);
       return clone(rec);
     },
-    byUrlHash: async (hash: string) => clone([...this.evidenceMap.values()].find((e) => e.url_hash === hash)),
+    byUrlHash: async (hash: string) =>
+      clone([...this.evidenceMap.values()].find((e) => e.url_hash === hash)),
     forContact: async (contactId: string) =>
       clone([...this.evidenceMap.values()].filter((e) => e.contact_id === contactId)),
     forCompany: async (companyId: string) =>
@@ -273,14 +288,17 @@ export class MemoryStore implements Store {
       return clone(rec);
     },
     list: async (contactId?: string) =>
-      clone(contactId ? this.eventsList.filter((e) => e.contact_id === contactId) : this.eventsList),
+      clone(
+        contactId ? this.eventsList.filter((e) => e.contact_id === contactId) : this.eventsList,
+      ),
   };
 
   sends = {
     reserve: async (row: Omit<SendAttempt, "id" | "created_at"> & { id?: string }) => {
       if (row.first_touch) {
         const dup = [...this.sendsMap.values()].find(
-          (s) => s.contact_id === row.contact_id && s.campaign_id === row.campaign_id && s.first_touch,
+          (s) =>
+            s.contact_id === row.contact_id && s.campaign_id === row.campaign_id && s.first_touch,
         );
         if (dup) throw new Error("duplicate_first_touch");
       }
@@ -289,7 +307,8 @@ export class MemoryStore implements Store {
       return clone(rec);
     },
     get: async (sendId: string) => clone(this.sendsMap.get(sendId)),
-    byRfc: async (rfc: string) => clone([...this.sendsMap.values()].find((s) => s.rfc_message_id === rfc)),
+    byRfc: async (rfc: string) =>
+      clone([...this.sendsMap.values()].find((s) => s.rfc_message_id === rfc)),
     firstTouch: async (contactId: string, campaignId: string) =>
       clone(
         [...this.sendsMap.values()].find(
@@ -331,7 +350,12 @@ export class MemoryStore implements Store {
       this.jobsMap.set(rec.id, rec);
       return clone(rec);
     },
-    finish: async (jobId: string, status: "ok" | "error", result?: Record<string, unknown>, error?: string) => {
+    finish: async (
+      jobId: string,
+      status: "ok" | "error",
+      result?: Record<string, unknown>,
+      error?: string,
+    ) => {
       const rec = this.jobsMap.get(jobId);
       if (!rec) throw new Error("job not found");
       rec.status = status;
@@ -421,15 +445,20 @@ export class MemoryStore implements Store {
   sync = {
     upsert: async (row: Omit<ExternalSyncRow, "id"> & { id?: string }) => {
       const key = `${row.entity}:${row.internal_id}`;
-      const rec: ExternalSyncRow = { ...row, id: row.id ?? this.syncMap.get(key)?.id ?? id("sync") };
+      const rec: ExternalSyncRow = {
+        ...row,
+        id: row.id ?? this.syncMap.get(key)?.id ?? id("sync"),
+      };
       this.syncMap.set(key, rec);
       return clone(rec);
     },
-    get: async (entity: string, internalId: string) => clone(this.syncMap.get(`${entity}:${internalId}`)),
+    get: async (entity: string, internalId: string) =>
+      clone(this.syncMap.get(`${entity}:${internalId}`)),
   };
 
   transitions = {
-    list: async (contactId: string) => clone(this.transitionsList.filter((t) => t.contact_id === contactId)),
+    list: async (contactId: string) =>
+      clone(this.transitionsList.filter((t) => t.contact_id === contactId)),
   };
 }
 

@@ -31,7 +31,10 @@ function openBrowser(url: string): void {
     }).unref();
     return;
   }
-  spawn(process.platform === "darwin" ? "open" : "xdg-open", [url], { detached: true, stdio: "ignore" }).unref();
+  spawn(process.platform === "darwin" ? "open" : "xdg-open", [url], {
+    detached: true,
+    stdio: "ignore",
+  }).unref();
 }
 
 function upsertEnv(key: string, value: string): void {
@@ -141,7 +144,9 @@ async function main() {
         }
         upsertEnv("GOOGLE_REFRESH_TOKEN", tokens.refresh_token);
         res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
-        res.end("Gmail OAuth OK. Refresh token saved to .env. You can close this tab. No email was sent.");
+        res.end(
+          "Gmail OAuth OK. Refresh token saved to .env. You can close this tab. No email was sent.",
+        );
         console.log(
           JSON.stringify({
             ok: true,
@@ -165,7 +170,9 @@ async function main() {
     server.listen(PORT, "127.0.0.1", () => {
       console.log(`OPEN_IN_BROWSER ${authUrl.toString()}`);
       openBrowser(authUrl.toString());
-      console.log(JSON.stringify({ browser: "opened_or_open_manually", authorize_url_host: authUrl.host }));
+      console.log(
+        JSON.stringify({ browser: "opened_or_open_manually", authorize_url_host: authUrl.host }),
+      );
     });
   });
 }

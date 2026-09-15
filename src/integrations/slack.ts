@@ -12,7 +12,11 @@ export interface SlackActionPayload {
   type?: string;
   user?: { id: string };
   actions?: Array<{ action_id: string; value?: string }>;
-  view?: { callback_id?: string; private_metadata?: string; state?: { values?: Record<string, Record<string, { value?: string }>> } };
+  view?: {
+    callback_id?: string;
+    private_metadata?: string;
+    state?: { values?: Record<string, Record<string, { value?: string }>> };
+  };
   trigger_id?: string;
   response_url?: string;
   message?: { ts?: string };
@@ -29,7 +33,8 @@ export function verifySlackSignature(opts: {
   const now = opts.nowSeconds ?? Math.floor(Date.now() / 1000);
   const ts = Number(opts.timestamp);
   if (!Number.isFinite(ts)) return { ok: false, reason: "bad_timestamp" };
-  if (Math.abs(now - ts) > (opts.windowSeconds ?? 300)) return { ok: false, reason: "timestamp_expired" };
+  if (Math.abs(now - ts) > (opts.windowSeconds ?? 300))
+    return { ok: false, reason: "timestamp_expired" };
   const base = `v0:${opts.timestamp}:${opts.rawBody}`;
   const digest = "v0=" + createHmac("sha256", opts.signingSecret).update(base).digest("hex");
   const a = Buffer.from(digest);
@@ -81,16 +86,41 @@ export function draftBlocks(input: {
     },
     {
       type: "section",
-      text: { type: "mrkdwn", text: `Reasons: ${input.reasons.slice(0, 3).join(", ")}\n${input.sources.slice(0, 3).join("\n")}` },
+      text: {
+        type: "mrkdwn",
+        text: `Reasons: ${input.reasons.slice(0, 3).join(", ")}\n${input.sources.slice(0, 3).join("\n")}`,
+      },
     },
     { type: "section", text: { type: "mrkdwn", text: `*${input.subject}*\n${input.body}` } },
     {
       type: "actions",
       elements: [
-        { type: "button", text: { type: "plain_text", text: "Approve & Send" }, action_id: "approve_send", value: input.draftId, style: "primary" },
-        { type: "button", text: { type: "plain_text", text: "Edit" }, action_id: "edit_draft", value: input.draftId },
-        { type: "button", text: { type: "plain_text", text: "Skip" }, action_id: "skip_draft", value: input.draftId },
-        { type: "button", text: { type: "plain_text", text: "DNC" }, action_id: "dnc_draft", value: input.draftId, style: "danger" },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Approve & Send" },
+          action_id: "approve_send",
+          value: input.draftId,
+          style: "primary",
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Edit" },
+          action_id: "edit_draft",
+          value: input.draftId,
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Skip" },
+          action_id: "skip_draft",
+          value: input.draftId,
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "DNC" },
+          action_id: "dnc_draft",
+          value: input.draftId,
+          style: "danger",
+        },
       ],
     },
   ];
@@ -106,7 +136,9 @@ export async function handleSlackAction(
   if (!cfg.SLACK_APPROVER_IDS.includes(userId)) {
     return { ok: false, message: "unauthorized" };
   }
-  const nonce = opts?.replayKey ?? `${payload.message?.ts ?? ""}:${payload.actions?.[0]?.action_id}:${payload.actions?.[0]?.value}`;
+  const nonce =
+    opts?.replayKey ??
+    `${payload.message?.ts ?? ""}:${payload.actions?.[0]?.action_id}:${payload.actions?.[0]?.value}`;
   if (!consumeReplayNonce(nonce)) return { ok: false, message: "replay" };
 
   const action = payload.actions?.[0];
@@ -150,7 +182,10 @@ export async function handleSlackAction(
   }
   if (action.action_id === "approve_send") {
     const latest = await store.contacts.get(contact.id);
-    if (latest && (latest.state === "SENT" || latest.state === "SENDING" || latest.state === "SEND_UNCERTAIN")) {
+    if (
+      latest &&
+      (latest.state === "SENT" || latest.state === "SENDING" || latest.state === "SEND_UNCERTAIN")
+    ) {
       return { ok: true, message: "already_sent_or_reserved", sent: latest.state === "SENT" };
     }
     const facts = await loadFactsCached();
@@ -182,8 +217,12 @@ export async function handleSlackAction(
 async function applyEdit(payload: SlackActionPayload, store: Store, userId: string) {
   const draftId = payload.view?.private_metadata ?? "";
   const values = payload.view?.state?.values ?? {};
-  const subject = Object.values(values).flatMap((v) => Object.values(v)).find((x) => x.value)?.value;
-  const body = [...Object.values(values).flatMap((v) => Object.values(v))].map((x) => x.value).filter(Boolean)[1];
+  const subject = Object.values(values)
+    .flatMap((v) => Object.values(v))
+    .find((x) => x.value)?.value;
+  const body = [...Object.values(values).flatMap((v) => Object.values(v))]
+    .map((x) => x.value)
+    .filter(Boolean)[1];
   const prev = await store.drafts.get(draftId);
   if (!prev) return { ok: false, message: "draft_not_found" };
   await store.drafts.invalidate(prev.id);

@@ -70,7 +70,7 @@ async function listViewIds(databaseId: string): Promise<string[]> {
       next_cursor?: string | null;
     };
     ids.push(...(json.results ?? []).map((r) => r.id));
-    cursor = json.has_more ? json.next_cursor ?? undefined : undefined;
+    cursor = json.has_more ? (json.next_cursor ?? undefined) : undefined;
   } while (cursor);
   return ids;
 }
@@ -98,7 +98,10 @@ async function main() {
   const created: string[] = [];
   const skipped: string[] = [];
   for (const spec of viewsToCreate(companyProp.id)) {
-    if (existingNames.has(spec.name) || !VIEW_NAMES.includes(spec.name as (typeof VIEW_NAMES)[number])) {
+    if (
+      existingNames.has(spec.name) ||
+      !VIEW_NAMES.includes(spec.name as (typeof VIEW_NAMES)[number])
+    ) {
       if (existingNames.has(spec.name)) skipped.push(spec.name);
       continue;
     }

@@ -24,7 +24,9 @@
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [{ "name": "Authorization", "value": "Bearer {{$env.ARC_INTERNAL_JOB_TOKEN}}" }]
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{$env.ARC_INTERNAL_JOB_TOKEN}}" }
+          ]
         }
       }
     },

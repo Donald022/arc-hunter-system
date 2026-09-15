@@ -19,13 +19,23 @@ async function main() {
   });
   const tokenJson = (await tokenRes.json()) as { access_token?: string; error?: string };
   if (!tokenRes.ok || !tokenJson.access_token) {
-    console.log(JSON.stringify({ ok: false, step: "token", status: tokenRes.status, error: tokenJson.error }));
+    console.log(
+      JSON.stringify({ ok: false, step: "token", status: tokenRes.status, error: tokenJson.error }),
+    );
     process.exit(1);
   }
   const headers = { authorization: `Bearer ${tokenJson.access_token}` };
-  const profileRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", { headers });
-  const profile = (await profileRes.json()) as { emailAddress?: string; messagesTotal?: number; error?: { message?: string } };
-  const sendAsRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs", { headers });
+  const profileRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
+    headers,
+  });
+  const profile = (await profileRes.json()) as {
+    emailAddress?: string;
+    messagesTotal?: number;
+    error?: { message?: string };
+  };
+  const sendAsRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs", {
+    headers,
+  });
   const sendAs = (await sendAsRes.json()) as {
     sendAs?: Array<{ sendAsEmail?: string; isDefault?: boolean; isPrimary?: boolean }>;
     error?: { message?: string };
@@ -43,7 +53,9 @@ async function main() {
         mailbox: profile.emailAddress,
         gmail_sender: cfg.GMAIL_SENDER,
         sender_is_send_as: aliases.some((a) => (a.email ?? "").toLowerCase() === sender),
-        sender_is_default: aliases.some((a) => (a.email ?? "").toLowerCase() === sender && a.default),
+        sender_is_default: aliases.some(
+          (a) => (a.email ?? "").toLowerCase() === sender && a.default,
+        ),
         send_as: aliases,
         live_send_enabled: cfg.LIVE_SEND_ENABLED,
         profile_error: profile.error?.message,

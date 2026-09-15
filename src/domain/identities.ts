@@ -52,21 +52,17 @@ export function normalizeProfileUrl(input?: string | null): string | undefined {
 }
 
 export function normalizePersonName(input: string): string {
-  return normalizeWhitespace(input)
-    .toLowerCase()
-    .replace(/[.,]/g, "");
+  return normalizeWhitespace(input).toLowerCase().replace(/[.,]/g, "");
 }
 
 export function contentHash(parts: Array<string | undefined | null>): string {
-  return sha256(
-    parts
-      .map((p) => (p ?? "").trim().toLowerCase())
-      .join("\n"),
-  );
+  return sha256(parts.map((p) => (p ?? "").trim().toLowerCase()).join("\n"));
 }
 
 export function tentativeMatchKey(name: string, employerOrDomain: string): string {
-  return sha256(`${normalizePersonName(name)}|${normalizeDomain(employerOrDomain) ?? employerOrDomain.toLowerCase()}`);
+  return sha256(
+    `${normalizePersonName(name)}|${normalizeDomain(employerOrDomain) ?? employerOrDomain.toLowerCase()}`,
+  );
 }
 
 export interface IdentityMatch {

@@ -10,12 +10,7 @@
   "reply_to": "donald@noaintelligence.xyz",
   "postal_address": "San Francisco, California",
   "opt_out_instructions": "If you do not want further email from NOA Intelligence, Inc., reply STOP.",
-  "restricted_claims": [
-    "75 MW secured",
-    "75 MW available for IT",
-    "shovel ready",
-    "we represent"
-  ],
+  "restricted_claims": ["75 MW secured", "75 MW available for IT", "shovel ready", "we represent"],
   "facts": [
     {
       "id": "cautious_mexico_intro",

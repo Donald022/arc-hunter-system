@@ -1,10 +1,16 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { loadFactsFromFile, loadFactsFromObject, type ApprovedFactsBundle } from "../domain/facts.ts";
+import {
+  loadFactsFromFile,
+  loadFactsFromObject,
+  type ApprovedFactsBundle,
+} from "../domain/facts.ts";
 
 let cached: ApprovedFactsBundle | undefined;
 
-export async function loadFactsCached(loader?: () => Promise<unknown>): Promise<ApprovedFactsBundle> {
+export async function loadFactsCached(
+  loader?: () => Promise<unknown>,
+): Promise<ApprovedFactsBundle> {
   if (cached) return cached;
   if (loader) {
     cached = loadFactsFromObject(await loader());

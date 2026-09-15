@@ -83,13 +83,17 @@ export interface StateTransitionRow {
 
 export interface Store {
   companies: {
-    upsert(input: Omit<CompanyRecord, "id" | "created_at" | "updated_at"> & { id?: string }): Promise<CompanyRecord>;
+    upsert(
+      input: Omit<CompanyRecord, "id" | "created_at" | "updated_at"> & { id?: string },
+    ): Promise<CompanyRecord>;
     get(id: string): Promise<CompanyRecord | undefined>;
     byDomain(domain: string): Promise<CompanyRecord | undefined>;
     list(): Promise<CompanyRecord[]>;
   };
   contacts: {
-    upsert(input: Omit<ContactRecord, "id" | "created_at" | "updated_at"> & { id?: string }): Promise<ContactRecord>;
+    upsert(
+      input: Omit<ContactRecord, "id" | "created_at" | "updated_at"> & { id?: string },
+    ): Promise<ContactRecord>;
     get(id: string): Promise<ContactRecord | undefined>;
     byEmail(email: string): Promise<ContactRecord | undefined>;
     byProfile(url: string): Promise<ContactRecord | undefined>;
@@ -97,7 +101,10 @@ export interface Store {
     setState(id: string, to: ContactState, actor: string, reason?: string): Promise<ContactRecord>;
   };
   signals: {
-    insert(signal: Signal, extras?: { company_id?: string; contact_id?: string }): Promise<SignalRow>;
+    insert(
+      signal: Signal,
+      extras?: { company_id?: string; contact_id?: string },
+    ): Promise<SignalRow>;
     byHash(hash: string): Promise<SignalRow | undefined>;
     list(): Promise<SignalRow[]>;
   };
@@ -132,7 +139,12 @@ export interface Store {
   };
   jobs: {
     start(job: string, hunter?: Hunter): Promise<JobRun>;
-    finish(id: string, status: "ok" | "error", result?: Record<string, unknown>, error?: string): Promise<JobRun>;
+    finish(
+      id: string,
+      status: "ok" | "error",
+      result?: Record<string, unknown>,
+      error?: string,
+    ): Promise<JobRun>;
     latestByJob(): Promise<JobRun[]>;
     get(id: string): Promise<JobRun | undefined>;
   };
@@ -147,7 +159,13 @@ export interface Store {
   };
   llm: {
     getDay(day: string): Promise<LlmUsageRow>;
-    add(day: string, requests: number, input: number, output: number, usd: number): Promise<LlmUsageRow>;
+    add(
+      day: string,
+      requests: number,
+      input: number,
+      output: number,
+      usd: number,
+    ): Promise<LlmUsageRow>;
   };
   enrichment: {
     creditsToday(day: string): Promise<number>;

@@ -81,9 +81,10 @@ export async function discover(opts: DiscoverOptions = {}): Promise<{
             state: "DISCOVERED",
             do_not_contact: false,
             campaign_id: campaign?.id,
-            profile_url: signal.source_url.includes("/team/") || signal.source_url.includes("/speakers/")
-              ? signal.source_url
-              : undefined,
+            profile_url:
+              signal.source_url.includes("/team/") || signal.source_url.includes("/speakers/")
+                ? signal.source_url
+                : undefined,
           });
           await store.evidence.insert({
             signal_id: row.id,
@@ -143,7 +144,9 @@ export async function discover(opts: DiscoverOptions = {}): Promise<{
   }
 }
 
-function segmentFor(hunter: Hunter): CampaignRecord["hunter"] extends Hunter ? import("../domain/types.ts").Segment : never {
+function segmentFor(
+  hunter: Hunter,
+): CampaignRecord["hunter"] extends Hunter ? import("../domain/types.ts").Segment : never {
   if (hunter === "broker") return "Broker";
   if (hunter === "tenant") return "Tenant";
   if (hunter === "network") return "Network";
