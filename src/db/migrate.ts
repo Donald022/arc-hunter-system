@@ -21,7 +21,13 @@ export function listMigrationFiles(dir = migrationsDir()): string[] {
 }
 
 export function checksum(sql: string): string {
-  return createHash("sha256").update(sql).digest("hex");
+  return createHash("sha256").update(sql.replace(/\r\n/g, "\n")).digest("hex");
+}
+
+function checksumCandidates(sql: string): string[] {
+  const lf = sql.replace(/\r\n/g, "\n");
+  const crlf = lf.replace(/\n/g, "\r\n");
+  return [...new Set([checksum(sql), checksum(lf), createHash("sha256").update(sql).digest("hex"), createHash("sha256").update(crlf).digest("hex")])];
 }
 
 export async function migrate(opts?: { databaseUrl?: string; schema?: string }): Promise<string[]> {
@@ -54,7 +60,7 @@ export async function migrate(opts?: { databaseUrl?: string; schema?: string }):
         [file],
       );
       if (existing.rows[0]) {
-        if (existing.rows[0].checksum !== sum) {
+        if (!checksumCandidates(sql).includes(existing.rows[0].checksum)) {
           throw new Error(`migration checksum mismatch for ${file}`);
         }
         continue;
