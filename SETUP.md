@@ -123,6 +123,44 @@ Views to create in the Contacts database: Review Queue; Drafts Awaiting Approval
 
 Manual Notion `DNC` / `Disqualified` / `Replied` / `Paused` overrides automation.
 
+### 6a. Staging Notion environment
+
+Every Notion write path (schema creation today; record sync later) validates parent
+identity before writing, via two separate, independently-gated functions —
+`assertStagingWriteAllowed()` and `assertProductionWriteAllowed()` in
+`src/integrations/notionEnvironment.ts` — so a staging write can never be satisfied by
+having `NOTION_ENVIRONMENT=production` set, or vice versa. To set up an isolated
+staging environment that can never touch the production `03 — Anchor Tenant` parent:
+
+1. In Notion, create a page titled `[STAGING] ARC Hunter` (the `[STAGING]` marker is
+   required — ancestry/id is checked too, but the marker is a mandatory second signal).
+2. Share only that page with the integration (not the production parent).
+3. In `.env`, set `NOTION_ENVIRONMENT=staging` and `NOTION_EXPECTED_PARENT_PAGE_ID=<that page's id>`.
+4. Run the setup tool in plan mode (default; zero writes):
+   ```bash
+   npm run setup:notion:staging
+   ```
+5. Review the printed plan (each of the five `[STAGING] ARC *` resources shown as
+   missing / exists_ok / exists_partial; ids are sanitized to a last-4 fingerprint).
+6. Only once you're ready to create anything, set `NOTION_WRITES_ENABLED=true` and add
+   `--apply`:
+   ```bash
+   npm run setup:notion:staging -- --apply
+   ```
+
+Facts can optionally be sourced from Notion instead of the local JSON file by setting
+`FACTS_SOURCE=notion` and `NOTION_FACTS_RECORD_MODEL=claim_per_row` (the only
+supported value; unset or unsupported values fail closed) once the `[STAGING] ARC
+Approved Outreach Facts` (or production) database has at least one approved,
+first-touch-enabled row — see `NOTION_SCHEMA_AUDIT.md`'s addendum for the exact
+contract and exclusion rules. **The production Approved Outreach Facts database
+currently has zero rows** — until real approved rows exist there, `FACTS_SOURCE=notion`
+will fail closed on every call, and no first-touch draft can be generated from it. Do
+not insert real ARC facts as a workaround; add real, Donald-approved rows in Notion
+when they're ready. If Notion is unreachable, misconfigured, or the facts are
+otherwise invalid, every job that reads facts fails closed and holds/places leads in
+`FACT_REVIEW` rather than drafting or sending.
+
 ## 7. Dashboard login
 
 Local fixture login is labeled and **rejected when `NODE_ENV=production`**. Production: set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, and `DASHBOARD_OPERATOR_EMAILS`. HTTPS + secure cookies + CSRF on mutations. Dashboard cannot raise spend caps, edit approved ARC claims, or send email.

@@ -42,6 +42,17 @@ export const factsBundleSchema = z.object({
 });
 
 export function hashFacts(bundle: Omit<ApprovedFactsBundle, "version_hash" | "loaded_at">): string {
+  // Sorted by id so database row ordering never changes the hash; every field that
+  // should invalidate an existing draft approval (wording, expiry, revocation via
+  // can_use_in_first_touch, and set membership itself) is included.
+  const facts = bundle.facts
+    .map((f) => ({
+      id: f.id,
+      wording: f.approved_wording,
+      until: f.valid_until,
+      use: f.can_use_in_first_touch,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
   return createHash("sha256")
     .update(
       JSON.stringify({
@@ -50,12 +61,7 @@ export function hashFacts(bundle: Omit<ApprovedFactsBundle, "version_hash" | "lo
         reply: bundle.reply_to,
         postal: bundle.postal_address,
         opt: bundle.opt_out_instructions,
-        facts: bundle.facts.map((f) => ({
-          id: f.id,
-          wording: f.approved_wording,
-          until: f.valid_until,
-          use: f.can_use_in_first_touch,
-        })),
+        facts,
       }),
     )
     .digest("hex");

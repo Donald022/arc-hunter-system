@@ -3,7 +3,7 @@ import type { Store } from "../db/types.ts";
 import { getGmailPort } from "../integrations/gmail.ts";
 import { logger } from "../logger.ts";
 import { seedDefaultCampaigns } from "./campaigns.ts";
-import { loadFactsCached } from "./factsLoader.ts";
+import { loadFactsSafe } from "./factsLoader.ts";
 
 export async function reconcile(opts: { store?: Store } = {}): Promise<{
   run_id: string;
@@ -34,14 +34,20 @@ export async function reconcile(opts: { store?: Store } = {}): Promise<{
         resolved += 1;
       }
     }
-    const facts = await loadFactsCached();
+    const factsResult = await loadFactsSafe();
+    const facts_hash = factsResult.ok
+      ? factsResult.facts.version_hash
+      : `unavailable:${factsResult.reason}`;
+    if (!factsResult.ok) {
+      logger.warn("reconcile: facts unavailable", { run_id: job.id, reason: factsResult.reason });
+    }
     const pause = await store.pause.get();
     await store.jobs.finish(job.id, "ok", {
       uncertain_resolved: resolved,
-      facts_hash: facts.version_hash,
+      facts_hash,
     });
     logger.info("reconcile complete", { run_id: job.id });
-    return { run_id: job.id, uncertain_resolved: resolved, pause, facts_hash: facts.version_hash };
+    return { run_id: job.id, uncertain_resolved: resolved, pause, facts_hash };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await store.jobs.finish(job.id, "error", undefined, msg);

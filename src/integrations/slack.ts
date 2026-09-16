@@ -3,7 +3,7 @@ import { getConfig } from "../config.ts";
 import { getStore } from "../db/pool.ts";
 import type { Store } from "../db/types.ts";
 import { approvalHash, isApprovalValid } from "../jobs/draft.ts";
-import { loadFactsCached } from "../jobs/factsLoader.ts";
+import { loadFactsSafe } from "../jobs/factsLoader.ts";
 import { executeApprovedSend } from "./gmail.ts";
 import { logger } from "../logger.ts";
 import { inc } from "../metrics.ts";
@@ -188,7 +188,11 @@ export async function handleSlackAction(
     ) {
       return { ok: true, message: "already_sent_or_reserved", sent: latest.state === "SENT" };
     }
-    const facts = await loadFactsCached();
+    const factsResult = await loadFactsSafe();
+    if (!factsResult.ok) {
+      return { ok: false, message: `facts_unavailable:${factsResult.reason}` };
+    }
+    const facts = factsResult.facts;
     const sender = cfg.GMAIL_SENDER ?? facts.reply_to;
     const hash = approvalHash({
       draftId: draft.id,

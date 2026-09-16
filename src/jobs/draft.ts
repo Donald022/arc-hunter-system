@@ -3,12 +3,13 @@ import { getConfig } from "../config.ts";
 import { getStore } from "../db/pool.ts";
 import type { Store } from "../db/types.ts";
 import { senderCompliance, validateArcClaims, type ApprovedFactsBundle } from "../domain/facts.ts";
-import { loadFactsCached } from "./factsLoader.ts";
+import { loadFactsSafe } from "./factsLoader.ts";
 import { LlmAdapter } from "../integrations/llm.ts";
 import { draftSystemPrompt, type DraftLlmOutput } from "../prompts/schemas.ts";
 import { inc } from "../metrics.ts";
 import { logger } from "../logger.ts";
 import type { ContactRecord, DraftRecord } from "../domain/types.ts";
+import { canTransition } from "../domain/states.ts";
 
 const MIN_WORDS = 80;
 const MAX_WORDS = 140;
@@ -90,12 +91,31 @@ export async function draft(
   fact_review: number;
 }> {
   const store = opts.store ?? getStore();
-  const facts = await loadFactsCached();
   const job = await store.jobs.start("draft");
-  const llm = opts.llm ?? new LlmAdapter(store);
   const qualified = (await store.contacts.list({ state: "QUALIFIED" })).slice(0, opts.limit ?? 10);
   let drafted = 0;
   let fact_review = 0;
+
+  const factsResult = await loadFactsSafe();
+  if (!factsResult.ok) {
+    // Fail closed: never generate a draft or advance approval on an unreadable or
+    // ambiguous facts source. Every currently-qualified lead is held for review.
+    for (const contact of qualified) {
+      if (canTransition(contact.state, "FACT_REVIEW")) {
+        await store.contacts.setState(contact.id, "FACT_REVIEW", "draft", factsResult.reason);
+      }
+      fact_review += 1;
+    }
+    await store.jobs.finish(job.id, "ok", {
+      drafted: 0,
+      fact_review,
+      facts_error: factsResult.reason,
+    });
+    logger.warn("draft blocked: facts unavailable", { run_id: job.id, reason: factsResult.reason });
+    return { run_id: job.id, drafted: 0, fact_review };
+  }
+  const facts = factsResult.facts;
+  const llm = opts.llm ?? new LlmAdapter(store);
   const footer = buildFooter(facts);
   const compliance = senderCompliance(facts);
 

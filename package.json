@@ -22,6 +22,7 @@
     "replies": "tsx src/cli.ts replies",
     "demo:fixtures": "tsx src/cli.ts demo",
     "setup:notion": "tsx scripts/setup-notion.ts",
+    "setup:notion:staging": "tsx scripts/setup-notion-staging.ts",
     "gmail:oauth": "tsx scripts/gmail-oauth-token.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

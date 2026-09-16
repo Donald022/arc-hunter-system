@@ -1,5 +1,7 @@
 import { getConfig } from "../config.ts";
 import { logger } from "../logger.ts";
+import { assertProductionWriteAllowed, type NotionParentIdentity } from "./notionEnvironment.ts";
+import type { RawNotionFactRow } from "../domain/notionFacts.ts";
 import {
   ACTIVITY_TYPES,
   CONTACT_STATES,
@@ -121,6 +123,74 @@ export async function notionRequest(path: string, init: RequestInit = {}): Promi
   return res.json();
 }
 
+/**
+ * Read-only. Fetches the ARC Approved Outreach Facts database's property (schema)
+ * names, independent of row content — works even when the database has zero rows.
+ * Used to validate the declared NOTION_FACTS_RECORD_MODEL contract against what the
+ * database can actually support (see src/domain/notionFacts.ts).
+ */
+export async function fetchFactsPropertyNames(): Promise<string[]> {
+  const cfg = getConfig();
+  if (!cfg.NOTION_TOKEN || !cfg.NOTION_FACTS_PAGE_ID) {
+    throw new Error("notion_facts_not_configured");
+  }
+  const db = (await notionRequest(`/databases/${cfg.NOTION_FACTS_PAGE_ID}`)) as {
+    data_sources?: Array<{ id: string }>;
+    properties?: Record<string, { name?: string }>;
+  };
+  let propertyNames = Object.values(db.properties ?? {})
+    .map((p) => p.name ?? "")
+    .filter(Boolean);
+  const dataSourceId = db.data_sources?.[0]?.id;
+  if (dataSourceId && propertyNames.length === 0) {
+    const ds = (await notionRequest(`/data_sources/${dataSourceId}`)) as {
+      properties?: Record<string, { name?: string }>;
+    };
+    propertyNames = Object.values(ds.properties ?? {})
+      .map((p) => p.name ?? "")
+      .filter(Boolean);
+  }
+  return propertyNames;
+}
+
+/**
+ * Read-only. Fetches every row of the ARC Approved Outreach Facts database, for
+ * src/domain/notionFacts.ts to parse. Never mutates anything.
+ */
+export async function fetchFactsRows(): Promise<RawNotionFactRow[]> {
+  const cfg = getConfig();
+  if (!cfg.NOTION_TOKEN || !cfg.NOTION_FACTS_PAGE_ID) {
+    throw new Error("notion_facts_not_configured");
+  }
+  const db = (await notionRequest(`/databases/${cfg.NOTION_FACTS_PAGE_ID}`)) as {
+    data_sources?: Array<{ id: string }>;
+  };
+  const dataSourceId = db.data_sources?.[0]?.id;
+  const queryPath = dataSourceId
+    ? `/data_sources/${dataSourceId}/query`
+    : `/databases/${cfg.NOTION_FACTS_PAGE_ID}/query`;
+
+  const rows: RawNotionFactRow[] = [];
+  let cursor: string | undefined;
+  do {
+    const body: Record<string, unknown> = { page_size: 100 };
+    if (cursor) body.start_cursor = cursor;
+    const page = (await notionRequest(queryPath, {
+      method: "POST",
+      body: JSON.stringify(body),
+    })) as {
+      results?: Array<{ id: string; properties?: Record<string, unknown> }>;
+      has_more?: boolean;
+      next_cursor?: string | null;
+    };
+    for (const r of page.results ?? []) {
+      rows.push({ id: r.id, properties: (r.properties ?? {}) as RawNotionFactRow["properties"] });
+    }
+    cursor = page.has_more ? (page.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return rows;
+}
+
 export const REQUIRED_PROPERTIES = {
   companies: [
     "Name",
@@ -187,7 +257,7 @@ export const REQUIRED_PROPERTIES = {
 
 export function diffProperties(
   existingNames: string[],
-  required: string[],
+  required: readonly string[],
 ): { missing: string[]; extra: string[] } {
   const have = new Set(existingNames);
   return {
@@ -205,14 +275,14 @@ export const NOTION_VIEWS = [
   "Company Coverage",
 ];
 
-function plainText(rich?: Array<{ plain_text?: string }>): string {
+export function plainText(rich?: Array<{ plain_text?: string }>): string {
   return (rich ?? [])
     .map((t) => t.plain_text ?? "")
     .join("")
     .trim();
 }
 
-async function notionListChildren(blockId: string): Promise<Array<Record<string, unknown>>> {
+export async function notionListChildren(blockId: string): Promise<Array<Record<string, unknown>>> {
   const out: Array<Record<string, unknown>> = [];
   let cursor: string | undefined;
   do {
@@ -229,7 +299,9 @@ async function notionListChildren(blockId: string): Promise<Array<Record<string,
   return out;
 }
 
-function matchSpecKey(title: string): keyof typeof REQUIRED_PROPERTIES | "facts" | undefined {
+export function matchSpecKey(
+  title: string,
+): keyof typeof REQUIRED_PROPERTIES | "facts" | undefined {
   const t = title.toLowerCase();
   if (t.includes("approved") && t.includes("fact")) return "facts";
   if (t.includes("fact") && t.includes("outreach")) return "facts";
@@ -238,6 +310,26 @@ function matchSpecKey(title: string): keyof typeof REQUIRED_PROPERTIES | "facts"
   if (t.includes("activit") || t.includes("outreach")) return "activity";
   if (t.includes("campaign")) return "campaigns";
   return undefined;
+}
+
+export function dashifyNotionId(id: string): string {
+  const clean = id.replace(/-/g, "");
+  return `${clean.slice(0, 8)}-${clean.slice(8, 12)}-${clean.slice(12, 16)}-${clean.slice(16, 20)}-${clean.slice(20)}`;
+}
+
+/** Read-only. Never assumes a default title when one can't be read — an unreadable
+ * title must fail identity checks, not silently resemble a known-good one. */
+export async function fetchPageIdentity(
+  pageId: string,
+): Promise<{ id: string; title: string; url?: string }> {
+  const dashed = dashifyNotionId(pageId);
+  const page = (await notionRequest(`/pages/${dashed}`)) as {
+    id: string;
+    url?: string;
+    properties?: Record<string, { title?: Array<{ plain_text?: string }> }>;
+  };
+  const title = plainText(page.properties?.title?.title) || plainText(page.properties?.Name?.title);
+  return { id: page.id, title, url: page.url };
 }
 
 export async function inspectLiveNotion(): Promise<{
@@ -261,17 +353,9 @@ export async function inspectLiveNotion(): Promise<{
   if (!cfg.NOTION_PARENT_PAGE_ID) throw new Error("NOTION_PARENT_PAGE_ID missing");
   logger.info("notion inspect (no writes)");
 
-  const parentId = cfg.NOTION_PARENT_PAGE_ID.replace(/-/g, "");
-  const dashed = `${parentId.slice(0, 8)}-${parentId.slice(8, 12)}-${parentId.slice(12, 16)}-${parentId.slice(16, 20)}-${parentId.slice(20)}`;
-  const page = (await notionRequest(`/pages/${dashed}`)) as {
-    id: string;
-    url?: string;
-    properties?: Record<string, { title?: Array<{ plain_text?: string }> }>;
-  };
-  const parentTitle =
-    plainText(page.properties?.title?.title) ||
-    plainText(page.properties?.Name?.title) ||
-    "03 — Anchor Tenant";
+  const dashed = dashifyNotionId(cfg.NOTION_PARENT_PAGE_ID);
+  const identity = await fetchPageIdentity(cfg.NOTION_PARENT_PAGE_ID);
+  const parentTitle = identity.title;
 
   const blocks = await notionListChildren(dashed);
   const children: Array<{
@@ -352,7 +436,7 @@ export async function inspectLiveNotion(): Promise<{
   const have = new Set(children.map((c) => c.spec_key).filter(Boolean));
   return {
     mode: "inspect",
-    parent: { id: page.id, title: parentTitle, url: page.url },
+    parent: { id: identity.id, title: parentTitle, url: identity.url },
     children,
     suggested_env,
     unmapped_required: need.filter((k) => !have.has(k)),
@@ -384,21 +468,27 @@ export async function inspectNotionParent(): Promise<{
   };
 }
 
-function titleProp(content: string) {
+export function titleProp(content: string) {
   return [{ type: "text" as const, text: { content } }];
 }
 
-function selectOptions(names: readonly string[]) {
+export function selectOptions(names: readonly string[]) {
   return { select: { options: names.map((name) => ({ name })) } };
 }
 
-function multiSelectOptions(names: readonly string[]) {
+export function multiSelectOptions(names: readonly string[]) {
   return { multi_select: { options: names.map((name) => ({ name })) } };
 }
 
-type CreatedDatabase = { id: string; data_source_id: string; title: string };
+export type CreatedDatabase = { id: string; data_source_id: string; title: string };
 
-async function createDatabase(
+/**
+ * Creates a database under `parentPageId`. Callers MUST call assertProductionWriteAllowed()
+ * or assertStagingWriteAllowed() (as appropriate) with a freshly-fetched parent identity
+ * immediately before invoking this — it performs no environment check itself so it can be
+ * reused by both the production and staging setup tools, whose identity rules differ.
+ */
+export async function createDatabase(
   parentPageId: string,
   title: string,
   properties: Record<string, unknown>,
@@ -417,6 +507,113 @@ async function createDatabase(
   return { id: created.id, data_source_id, title };
 }
 
+/**
+ * Property schemas for the five ARC Hunter databases. Shared by the production setup
+ * tool (scripts/setup-notion.ts) and the staging setup tool
+ * (scripts/setup-notion-staging.ts) so both create identical shapes — see
+ * NOTION_SCHEMA_AUDIT.md for the audited production property list this mirrors.
+ */
+export function companiesProperties(): Record<string, unknown> {
+  return {
+    Name: { title: {} },
+    Domain: { url: {} },
+    Segment: selectOptions(SEGMENTS),
+    "Region Signals": multiSelectOptions(["Mexico", "LATAM", "International", "US", "Other"]),
+    "Why Relevant": { rich_text: {} },
+    "Source URLs": { rich_text: {} },
+    "Account Priority": { number: { format: "number" } },
+    Owner: { rich_text: {} },
+    Status: selectOptions(["Active", "Watch", "Paused", "Disqualified", "DNC"]),
+    "Last Seen": { date: {} },
+  };
+}
+
+export function contactsProperties(companiesDataSourceId: string): Record<string, unknown> {
+  return {
+    Name: { title: {} },
+    Company: {
+      relation: {
+        data_source_id: companiesDataSourceId,
+        type: "single_property",
+        single_property: {},
+      },
+    },
+    Title: { rich_text: {} },
+    "Work Email": { email: {} },
+    "Email Confidence": selectOptions(EMAIL_CONFIDENCE),
+    "Profile URL": { url: {} },
+    "Hunter Tags": multiSelectOptions(HUNTERS),
+    Role: selectOptions(ROLES),
+    "Direct Buyer Potential": { number: { format: "number" } },
+    "Connection Potential": { number: { format: "number" } },
+    "Fit Score": { number: { format: "number" } },
+    "Evidence Summary": { rich_text: {} },
+    "Evidence URLs": { rich_text: {} },
+    "Personalization Fact": { rich_text: {} },
+    "Source Date": { date: {} },
+    Status: selectOptions(CONTACT_STATES),
+    "Do Not Contact": { checkbox: {} },
+    Owner: { rich_text: {} },
+    "Last Contacted": { date: {} },
+    "Gmail Thread ID": { rich_text: {} },
+    "Internal Lead ID": { rich_text: {} },
+  };
+}
+
+export function activityProperties(contactsDataSourceId: string): Record<string, unknown> {
+  return {
+    Name: { title: {} },
+    Contact: {
+      relation: {
+        data_source_id: contactsDataSourceId,
+        type: "single_property",
+        single_property: {},
+      },
+    },
+    Type: selectOptions(ACTIVITY_TYPES),
+    Time: { date: {} },
+    Actor: { rich_text: {} },
+    Subject: { rich_text: {} },
+    "Exact Body": { rich_text: {} },
+    "Research Snapshot": { rich_text: {} },
+    "Gmail Message ID": { rich_text: {} },
+    "Gmail Thread ID": { rich_text: {} },
+    "Approval Version": { number: { format: "number" } },
+    Error: { rich_text: {} },
+  };
+}
+
+export function campaignsProperties(): Record<string, unknown> {
+  return {
+    Name: { title: {} },
+    Hunter: selectOptions(HUNTERS),
+    Enabled: { checkbox: {} },
+    "Seed Domains": { rich_text: {} },
+    "Source URLs": { rich_text: {} },
+    "Search Terms": { rich_text: {} },
+    "Region Boost": { rich_text: {} },
+    "Daily Research Cap": { number: { format: "number" } },
+    "Daily Send Cap": { number: { format: "number" } },
+    "Last Run": { date: {} },
+  };
+}
+
+export function factsProperties(): Record<string, unknown> {
+  return {
+    Name: { title: {} },
+    legal_sender_entity: { rich_text: {} },
+    approved_sender_name_title: { rich_text: {} },
+    reply_to: { email: {} },
+    postal_address: { rich_text: {} },
+    opt_out_instructions: { rich_text: {} },
+    site_location_disclosure: { rich_text: {} },
+    approved_wording: { rich_text: {} },
+    can_use_in_first_touch: { checkbox: {} },
+    approved_by: { rich_text: {} },
+    approved_at: { date: {} },
+  };
+}
+
 export async function applyHunterDatabases(): Promise<{
   created: string[];
   skipped: string[];
@@ -428,6 +625,10 @@ export async function applyHunterDatabases(): Promise<{
   }
   const live = await inspectLiveNotion();
   const parentId = live.parent?.id ?? cfg.NOTION_PARENT_PAGE_ID;
+  const parentIdentity: NotionParentIdentity | undefined = live.parent
+    ? { id: live.parent.id, title: live.parent.title }
+    : undefined;
+  assertProductionWriteAllowed(cfg, parentIdentity);
   const existing = new Map(live.children.filter((c) => c.spec_key).map((c) => [c.spec_key!, c]));
   const created: string[] = [];
   const skipped: string[] = [];
@@ -463,19 +664,7 @@ export async function applyHunterDatabases(): Promise<{
   const companies = await ensure(
     "companies",
     "ARC Companies",
-    () =>
-      createDatabase(parentId, "ARC Companies", {
-        Name: { title: {} },
-        Domain: { url: {} },
-        Segment: selectOptions(SEGMENTS),
-        "Region Signals": multiSelectOptions(["Mexico", "LATAM", "International", "US", "Other"]),
-        "Why Relevant": { rich_text: {} },
-        "Source URLs": { rich_text: {} },
-        "Account Priority": { number: { format: "number" } },
-        Owner: { rich_text: {} },
-        Status: selectOptions(["Active", "Watch", "Paused", "Disqualified", "DNC"]),
-        "Last Seen": { date: {} },
-      }),
+    () => createDatabase(parentId, "ARC Companies", companiesProperties()),
     "NOTION_COMPANIES_DATA_SOURCE_ID",
   );
 
@@ -487,32 +676,7 @@ export async function applyHunterDatabases(): Promise<{
   await ensure(
     "contacts",
     "ARC Contacts",
-    () =>
-      createDatabase(parentId, "ARC Contacts", {
-        Name: { title: {} },
-        Company: {
-          relation: { data_source_id: companiesDs, type: "single_property", single_property: {} },
-        },
-        Title: { rich_text: {} },
-        "Work Email": { email: {} },
-        "Email Confidence": selectOptions(EMAIL_CONFIDENCE),
-        "Profile URL": { url: {} },
-        "Hunter Tags": multiSelectOptions(HUNTERS),
-        Role: selectOptions(ROLES),
-        "Direct Buyer Potential": { number: { format: "number" } },
-        "Connection Potential": { number: { format: "number" } },
-        "Fit Score": { number: { format: "number" } },
-        "Evidence Summary": { rich_text: {} },
-        "Evidence URLs": { rich_text: {} },
-        "Personalization Fact": { rich_text: {} },
-        "Source Date": { date: {} },
-        Status: selectOptions(CONTACT_STATES),
-        "Do Not Contact": { checkbox: {} },
-        Owner: { rich_text: {} },
-        "Last Contacted": { date: {} },
-        "Gmail Thread ID": { rich_text: {} },
-        "Internal Lead ID": { rich_text: {} },
-      }),
+    () => createDatabase(parentId, "ARC Contacts", contactsProperties(companiesDs ?? "")),
     "NOTION_CONTACTS_DATA_SOURCE_ID",
   );
 
@@ -521,62 +685,21 @@ export async function applyHunterDatabases(): Promise<{
   await ensure(
     "activity",
     "ARC Outreach Activity",
-    () =>
-      createDatabase(parentId, "ARC Outreach Activity", {
-        Name: { title: {} },
-        Contact: {
-          relation: { data_source_id: contactsDs, type: "single_property", single_property: {} },
-        },
-        Type: selectOptions(ACTIVITY_TYPES),
-        Time: { date: {} },
-        Actor: { rich_text: {} },
-        Subject: { rich_text: {} },
-        "Exact Body": { rich_text: {} },
-        "Research Snapshot": { rich_text: {} },
-        "Gmail Message ID": { rich_text: {} },
-        "Gmail Thread ID": { rich_text: {} },
-        "Approval Version": { number: { format: "number" } },
-        Error: { rich_text: {} },
-      }),
+    () => createDatabase(parentId, "ARC Outreach Activity", activityProperties(contactsDs ?? "")),
     "NOTION_ACTIVITY_DATA_SOURCE_ID",
   );
 
   await ensure(
     "campaigns",
     "ARC Campaigns",
-    () =>
-      createDatabase(parentId, "ARC Campaigns", {
-        Name: { title: {} },
-        Hunter: selectOptions(HUNTERS),
-        Enabled: { checkbox: {} },
-        "Seed Domains": { rich_text: {} },
-        "Source URLs": { rich_text: {} },
-        "Search Terms": { rich_text: {} },
-        "Region Boost": { rich_text: {} },
-        "Daily Research Cap": { number: { format: "number" } },
-        "Daily Send Cap": { number: { format: "number" } },
-        "Last Run": { date: {} },
-      }),
+    () => createDatabase(parentId, "ARC Campaigns", campaignsProperties()),
     "NOTION_CAMPAIGNS_DATA_SOURCE_ID",
   );
 
   await ensure(
     "facts",
     "ARC Approved Outreach Facts",
-    () =>
-      createDatabase(parentId, "ARC Approved Outreach Facts", {
-        Name: { title: {} },
-        legal_sender_entity: { rich_text: {} },
-        approved_sender_name_title: { rich_text: {} },
-        reply_to: { email: {} },
-        postal_address: { rich_text: {} },
-        opt_out_instructions: { rich_text: {} },
-        site_location_disclosure: { rich_text: {} },
-        approved_wording: { rich_text: {} },
-        can_use_in_first_touch: { checkbox: {} },
-        approved_by: { rich_text: {} },
-        approved_at: { date: {} },
-      }),
+    () => createDatabase(parentId, "ARC Approved Outreach Facts", factsProperties()),
     "NOTION_FACTS_PAGE_ID",
     true,
   );
