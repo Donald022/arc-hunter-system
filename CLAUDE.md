@@ -21,13 +21,13 @@ The system defaults to a fully safe dry-run mode: no live email, no paid AI call
 
 ```bash
 npm install
-npm run typecheck        # tsc --noEmit
+npm run typecheck
 npm test                 # vitest run (single worker, sequential — see below)
 npm run test:watch
-npm run dev               # tsx src/server.ts
-npm run migrate           # tsx src/db/migrate.ts
-npm run build             # tsc -p tsconfig.json
-npm run format / format:check   # prettier
+npm run dev
+npm run migrate
+npm run build
+npm run format / format:check
 
 # CLI pipeline commands (in-memory store, seeded with default campaigns)
 npm run discover   -- --hunter broker|tenant|expansion|deal|network
@@ -95,7 +95,5 @@ Thin clients for external services, each respecting the relevant feature flag/ca
 
 ## Conventions
 
-- ESM throughout (`"type": "module"`), TypeScript `NodeNext` module resolution — local imports use explicit `.ts` extensions (e.g. `from "./config.ts"`); `tsconfig.json` has `allowImportingTsExtensions`/`rewriteRelativeImportExtensions` on to support this at build time.
-- Strict TypeScript: `strict`, `noImplicitAny`, `noUncheckedIndexedAccess`, `noFallthroughCasesInSwitch` all on.
-- Prettier: double quotes off (`singleQuote: false`), semicolons on, trailing commas everywhere, 100-char width. Run `npm run format` before committing.
+- Run `npm run format` before committing.
 - Hunters are one of exactly five: `broker | tenant | expansion | deal | network` (`HUNTERS` in `src/domain/types.ts`) — this list is threaded through campaigns, sources, scoring, and CLI flags; adding a hunter means updating all of those.
