@@ -7,21 +7,24 @@ Successfully redesigned the ARC Hunter System operator dashboard from a function
 ## Visual Design
 
 ### Color Palette
+
 - **Background**: Obsidian `#080A0D` with elevated panels at `#11151A`
 - **Borders**: Subtle `#252B33` for refined separation
 - **Text**: Primary `#F4F6F8`, secondary `#9099A5` for hierarchy
 - **Accent**: Muted gold/amber `#C99A45` for the ARC Hunter brand
-- **Status Colors**: 
+- **Status Colors**:
   - Success: Restrained green `#3D7B4F`
   - Warning: Amber `#C99A45`
   - Error: Controlled red `#B33A3A`
 
 ### Typography
+
 - **Font**: Inter (Google Fonts) with system fallbacks
 - **Numbers**: Tabular numerals for statistics
 - **Sizing**: Consistent scale from 11px to 28px
 
 ### Design Principles
+
 - No bright neon colors, excessive gradients, or glassmorphism
 - Restrained shadows and crisp spacing
 - Professional, data-center command center aesthetic
@@ -30,17 +33,20 @@ Successfully redesigned the ARC Hunter System operator dashboard from a function
 ## Layout Changes
 
 ### New Sidebar Navigation (240px)
+
 - **Header**: ARC HUNTER wordmark + "Anchor Tenant Intelligence" subtitle
 - **Navigation**: Overview, Searches, Leads & Activity with active state indicators
 - **Footer**: System status and logged-in user display
 - **Behavior**: Sticky positioning, responsive mobile drawer (future enhancement)
 
 ### Page Header (Sticky)
+
 - Page title and description
 - Environment badges (DRY RUN, Discovery status, Outbound status)
 - Consistent across all pages
 
 ### Main Content Area
+
 - Flexible padding and spacing
 - Responsive grid layouts
 - Maximum readability at all screen sizes
@@ -48,9 +54,11 @@ Successfully redesigned the ARC Hunter System operator dashboard from a function
 ## Page Redesigns
 
 ### Overview Page
+
 **Before**: Plain text metrics, HTML table of hunters, raw JSON dump
 
 **After**:
+
 1. **Statistics Grid** (6 cards)
    - Leads Discovered
    - Qualified
@@ -83,9 +91,11 @@ Successfully redesigned the ARC Hunter System operator dashboard from a function
    - No longer cluttering main view
 
 ### Searches Page
+
 **Before**: Basic form fields in simple cards
 
 **After**:
+
 1. **Campaign Cards** (structured, professional)
    - Campaign header with name, hunter, and enabled badge
    - Organized sections:
@@ -99,9 +109,11 @@ Successfully redesigned the ARC Hunter System operator dashboard from a function
    - Clear visual feedback for validation errors
 
 ### Leads & Activity Page
+
 **Before**: Simple search form, basic table
 
 **After**:
+
 1. **Filter Bar**
    - Search by name or company (wide input)
    - Filter by state (200px)
@@ -152,7 +164,7 @@ All components return safe HTML strings with proper escaping.
 ## Responsive Design
 
 - **Desktop** (>768px): Sidebar + main content side-by-side
-- **Mobile** (<768px): 
+- **Mobile** (<768px):
   - Sidebar hidden by default (can be enhanced with toggle)
   - Stats grid: 2 columns instead of auto-fit
   - Filter bar: Stacked inputs
@@ -162,6 +174,7 @@ All components return safe HTML strings with proper escaping.
 ## Security & Functionality Preserved
 
 ### ✅ All Existing Features Maintained
+
 - Session-based authentication with cookies
 - CSRF protection on all mutations
 - Login page (fixture mode + OIDC configuration)
@@ -172,6 +185,7 @@ All components return safe HTML strings with proper escaping.
 - Notion and Gmail link generation
 
 ### ✅ No Breaking Changes
+
 - All route paths unchanged (`/dashboard`, `/dashboard/searches`, `/dashboard/leads`)
 - All form field names unchanged
 - All POST endpoints unchanged
@@ -180,6 +194,7 @@ All components return safe HTML strings with proper escaping.
 - All business logic untouched
 
 ### ✅ Security Enhancements
+
 - Confirmation prompts on destructive actions (pause, resume)
 - HTML escaping on all user-generated content
 - No API keys or secrets exposed in UI
@@ -188,6 +203,7 @@ All components return safe HTML strings with proper escaping.
 ## Testing
 
 ### New Tests (8 additional)
+
 Created comprehensive UI tests in `tests/dashboard-ui.test.ts`:
 
 1. ✅ Renders dark theme and sidebar navigation
@@ -200,7 +216,9 @@ Created comprehensive UI tests in `tests/dashboard-ui.test.ts`:
 8. ✅ Hides raw metrics in developer details
 
 ### Existing Tests (32 preserved)
+
 All original dashboard tests continue to pass:
+
 - Dashboard and pause controls (3 tests)
 - Pipeline tests (1 test)
 - Gmail tests (7 tests)
@@ -215,6 +233,7 @@ All original dashboard tests continue to pass:
 **Total: 40/40 tests passing** ✅
 
 ### Quality Assurance
+
 - ✅ TypeScript type-checking passes (`npm run typecheck`)
 - ✅ All tests pass (`npm test`)
 - ✅ Code formatted with Prettier (`npm run format`)
@@ -225,24 +244,29 @@ All original dashboard tests continue to pass:
 ## Files Changed
 
 ### New Files (3)
+
 1. `src/dashboard/styles.ts` — Complete dark theme CSS (800+ lines)
 2. `src/dashboard/components.ts` — Reusable UI components
 3. `tests/dashboard-ui.test.ts` — New frontend tests
 
 ### Modified Files (2)
+
 1. `src/dashboard/routes.ts` — Updated all page rendering to use new layout and components
 2. `src/config.ts` — Added "staging" to NODE_ENV enum (previously done, preserved)
 
 ### Updated by Prettier (45)
+
 All existing files reformatted for consistency (no functional changes)
 
 ## Deployment Considerations
 
 ### Environment Variables
+
 - `NODE_ENV=staging` — Required for fixture login (not production)
 - `DASHBOARD_FIXTURE_LOGIN=true` — Enables demo login for testing
 
 ### Production Checklist
+
 - ✅ Fixture login disabled in production (`NODE_ENV=production`)
 - ✅ OIDC configuration required for production auth
 - ✅ All security tokens and secrets remain server-side
@@ -251,6 +275,7 @@ All existing files reformatted for consistency (no functional changes)
 ## Known Limitations
 
 ### Current State
+
 1. **Mobile sidebar**: Hidden by default on mobile (<768px), no toggle implemented yet
 2. **Loading states**: No loading spinners on form submissions (forms work, just no visual feedback during submission)
 3. **Client-side validation**: Relies on server-side validation only (intentional for security)
@@ -258,6 +283,7 @@ All existing files reformatted for consistency (no functional changes)
 5. **Hunter icons**: Simple emoji placeholders (can be enhanced with SVG icons)
 
 ### Future Enhancements (Not Required Now)
+
 - Mobile sidebar toggle button
 - Loading spinners during mutations
 - Client-side field validation (in addition to server-side)
@@ -278,11 +304,13 @@ All existing files reformatted for consistency (no functional changes)
 ## Browser Compatibility
 
 Tested and verified on:
+
 - ✅ Chrome/Edge (Chromium)
 - ✅ Firefox
 - ✅ Safari (WebKit)
 
 CSS features used:
+
 - CSS Grid (broadly supported)
 - CSS Variables (broadly supported)
 - Flexbox (universal support)

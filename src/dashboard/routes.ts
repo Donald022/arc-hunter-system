@@ -9,9 +9,10 @@ import { isSsrfSafeUrl } from "../hunters/parsers.ts";
 import { setPaused } from "../jobs/controls.ts";
 import { discover } from "../jobs/discover.ts";
 import { seedDefaultCampaigns } from "../jobs/campaigns.ts";
-import { HUNTERS, type Hunter } from "../domain/types.ts";
+import { HUNTERS, CONTACT_STATES, type Hunter, type ContactState } from "../domain/types.ts";
 import { utcDay } from "../integrations/llm.ts";
 import { getNotionClient } from "../integrations/notion.ts";
+import { notionDashboardSummary } from "../integrations/notionEnvironment.ts";
 import { darkTheme } from "./styles.ts";
 import { badge, statCard, progressBar, hunterIcon, emptyState, alert, esc } from "./components.ts";
 
@@ -210,6 +211,7 @@ export async function registerDashboard(
       sameSite: "lax",
       path: "/",
       secure: cfg.NODE_ENV === "production",
+      maxAge: 12 * 3600, // 12 hours (in seconds)
     });
     return reply.redirect("/dashboard");
   });
@@ -243,6 +245,7 @@ export async function registerDashboard(
       cfg.DAILY_LLM_USD_CAP > 0 ? (llm.estimated_usd / cfg.DAILY_LLM_USD_CAP) * 100 : 0;
 
     // Status badges for header
+    const notionStatus = notionDashboardSummary(cfg);
     const statusBadges = [
       badge({
         type: pause.discovery_paused ? "error" : "success",
@@ -256,6 +259,15 @@ export async function registerDashboard(
           : cfg.LIVE_SEND_ENABLED
             ? "Outbound Armed"
             : "Dry Run Mode",
+        dot: true,
+      }),
+      badge({
+        type: !notionStatus.connected
+          ? "neutral"
+          : notionStatus.writesEnabled
+            ? "warning"
+            : "success",
+        label: `Notion: ${notionStatus.environment}${notionStatus.connected ? (notionStatus.writesEnabled ? " (writes on)" : " (read-only)") : " (not connected)"}`,
         dot: true,
       }),
     ];
@@ -580,13 +592,27 @@ export async function registerDashboard(
   app.get("/dashboard/leads", async (req, reply) => {
     const user = requireUser(req, reply);
     if (!user) return;
-    const q = (req.query as { q?: string; state?: string; hunter?: string }).q;
-    const state = (req.query as { state?: string }).state;
-    const hunter = (req.query as { hunter?: Hunter }).hunter;
+
+    // Extract and validate query parameters
+    const query = req.query as { q?: string; state?: string; hunter?: string };
+    const q = query.q?.trim();
+
+    // Validate state parameter
+    const stateParam = query.state?.trim();
+    const state: ContactState | undefined =
+      stateParam && CONTACT_STATES.includes(stateParam as ContactState)
+        ? (stateParam as ContactState)
+        : undefined;
+
+    // Validate hunter parameter
+    const hunterParam = query.hunter?.trim();
+    const hunter: Hunter | undefined =
+      hunterParam && HUNTERS.includes(hunterParam as Hunter) ? (hunterParam as Hunter) : undefined;
+
     const contacts = await store.contacts.list({
       q,
       state: state as never,
-      hunter: HUNTERS.includes(hunter as Hunter) ? (hunter as Hunter) : undefined,
+      hunter,
     });
 
     // State badge helper
@@ -595,11 +621,25 @@ export async function registerDashboard(
         string,
         { type: "success" | "warning" | "error" | "neutral"; label: string }
       > = {
+        DISCOVERED: { type: "neutral", label: "Discovered" },
+        RESEARCHING: { type: "neutral", label: "Researching" },
+        RESEARCH_REVIEW: { type: "warning", label: "Needs Review" },
+        DISQUALIFIED: { type: "neutral", label: "Disqualified" },
         QUALIFIED: { type: "success", label: "Qualified" },
         QUALIFIED_NO_EMAIL: { type: "warning", label: "No Email" },
-        PENDING_APPROVAL: { type: "warning", label: "Draft Pending" },
+        DRAFT_READY: { type: "neutral", label: "Draft Ready" },
+        FACT_REVIEW: { type: "warning", label: "Fact Review" },
+        PENDING_APPROVAL: { type: "warning", label: "Pending Approval" },
+        EDITING: { type: "neutral", label: "Editing" },
+        APPROVED: { type: "success", label: "Approved" },
+        SENDING: { type: "neutral", label: "Sending" },
         SENT: { type: "success", label: "Sent" },
         REPLIED: { type: "success", label: "Replied" },
+        SKIPPED: { type: "neutral", label: "Skipped" },
+        DNC: { type: "error", label: "Do Not Contact" },
+        SEND_UNCERTAIN: { type: "warning", label: "Send Uncertain" },
+        SEND_FAILED: { type: "error", label: "Send Failed" },
+        BOUNCED: { type: "error", label: "Bounced" },
         MANUAL_HANDOFF: { type: "success", label: "Handoff" },
         REJECTED: { type: "neutral", label: "Rejected" },
         ERROR: { type: "error", label: "Error" },
@@ -608,30 +648,78 @@ export async function registerDashboard(
       return badge({ type: b.type, label: b.label });
     };
 
+    // Human-readable state labels for dropdown
+    const stateLabels: Record<ContactState, string> = {
+      DISCOVERED: "Discovered",
+      RESEARCHING: "Researching",
+      RESEARCH_REVIEW: "Research Review",
+      DISQUALIFIED: "Disqualified",
+      QUALIFIED: "Qualified",
+      QUALIFIED_NO_EMAIL: "Qualified — No Email",
+      DRAFT_READY: "Draft Ready",
+      FACT_REVIEW: "Fact Review",
+      PENDING_APPROVAL: "Pending Approval",
+      EDITING: "Editing",
+      APPROVED: "Approved",
+      SENDING: "Sending",
+      SENT: "Sent",
+      REPLIED: "Replied",
+      SKIPPED: "Skipped",
+      DNC: "Do Not Contact",
+      SEND_UNCERTAIN: "Send Uncertain",
+      SEND_FAILED: "Send Failed",
+      BOUNCED: "Bounced",
+      MANUAL_HANDOFF: "Manual Handoff",
+    };
+
+    // Hunter labels for dropdown
+    const hunterLabels: Record<Hunter, string> = {
+      broker: "Broker",
+      tenant: "Tenant",
+      expansion: "Expansion",
+      deal: "Deal",
+      network: "Network",
+    };
+
     const body = `
       <!-- Filter Bar -->
       <div class="filter-bar">
         <form method="get" style="display: contents;">
+          <label for="filter-search" class="visually-hidden">Search by name or company</label>
           <input 
-            type="text" 
+            type="text"
+            id="filter-search"
             name="q" 
             placeholder="Search by name or company..." 
             value="${esc(q ?? "")}"
           />
-          <input 
-            type="text" 
-            name="state" 
-            placeholder="Filter by state..." 
-            value="${esc(state ?? "")}"
+          
+          <label for="filter-state" class="visually-hidden">Filter by state</label>
+          <select 
+            id="filter-state"
+            name="state"
             style="flex: 0 0 200px;"
-          />
-          <input 
-            type="text" 
-            name="hunter" 
-            placeholder="Filter by hunter..." 
-            value="${esc(hunter ?? "")}"
+          >
+            <option value="">All states</option>
+            ${CONTACT_STATES.map(
+              (s) =>
+                `<option value="${esc(s)}" ${state === s ? "selected" : ""}>${esc(stateLabels[s])}</option>`,
+            ).join("")}
+          </select>
+          
+          <label for="filter-hunter" class="visually-hidden">Filter by hunter</label>
+          <select 
+            id="filter-hunter"
+            name="hunter"
             style="flex: 0 0 200px;"
-          />
+          >
+            <option value="">All hunters</option>
+            ${HUNTERS.map(
+              (h) =>
+                `<option value="${esc(h)}" ${hunter === h ? "selected" : ""}>${esc(hunterLabels[h])}</option>`,
+            ).join("")}
+          </select>
+          
           <button type="submit" class="primary">Filter</button>
           ${q || state || hunter ? '<a href="/dashboard/leads" style="padding: 8px 16px; color: var(--text-secondary); text-decoration: none;">Clear</a>' : ""}
         </form>
@@ -655,7 +743,7 @@ export async function registerDashboard(
                 <th>Score</th>
                 <th>State</th>
                 <th>Hunter</th>
-                <th>Reason Codes</th>
+                <th>Evidence / Reasons</th>
                 <th>Links</th>
               </tr>
             </thead>
@@ -664,35 +752,53 @@ export async function registerDashboard(
                 .map((c) => {
                   const reasonCodes = (c.score_breakdown?.reason_codes ?? []).join(", ");
                   const hunterTag = c.hunter_tags?.[0] ?? "—";
+                  const scoreDisplay =
+                    c.state === "DISCOVERED"
+                      ? "Awaiting research"
+                      : c.fit_score > 0
+                        ? `${c.fit_score}/100`
+                        : "—";
                   const notionLink = c.notion_page_id
                     ? `<a href="https://notion.so/${c.notion_page_id}" target="_blank" style="color: var(--accent-gold); text-decoration: none; margin-right: 8px;">Notion</a>`
                     : "";
                   const gmailLink = c.gmail_thread_id
                     ? `<a href="https://mail.google.com/mail/u/0/#search/${encodeURIComponent(c.gmail_thread_id)}" target="_blank" style="color: var(--accent-gold); text-decoration: none;">Gmail</a>`
                     : "";
+                  const profileLink = c.profile_url
+                    ? `<a href="${esc(c.profile_url)}" target="_blank" style="color: var(--text-secondary); text-decoration: none; font-size: 11px;">Source</a>`
+                    : "";
+                  const evidenceOrReasons =
+                    c.state === "DISCOVERED" && c.evidence_summary
+                      ? c.evidence_summary.slice(0, 100) +
+                        (c.evidence_summary.length > 100 ? "..." : "")
+                      : reasonCodes || "—";
 
                   return `<tr>
                   <td style="font-weight: 500;">${esc(c.name)}</td>
-                  <td>${esc(c.title ?? "—")}</td>
+                  <td style="font-size: 13px; color: var(--text-secondary);">${esc(c.title ?? "—")}</td>
                   <td style="font-variant-numeric: tabular-nums;">
-                    <span style="display: inline-block; padding: 2px 8px; background: ${
-                      c.fit_score >= 8
-                        ? "var(--success-dim)"
-                        : c.fit_score >= 6
-                          ? "var(--warning-dim)"
-                          : "rgba(255,255,255,0.05)"
-                    }; border-radius: 4px; font-size: 12px; font-weight: 600;">
-                      ${c.fit_score}/10
-                    </span>
+                    ${
+                      c.state === "DISCOVERED"
+                        ? `<span style="font-size: 12px; color: var(--text-secondary);">${scoreDisplay}</span>`
+                        : `<span style="display: inline-block; padding: 2px 8px; background: ${
+                            c.fit_score >= 70
+                              ? "var(--success-dim)"
+                              : c.fit_score >= 50
+                                ? "var(--warning-dim)"
+                                : "rgba(255,255,255,0.05)"
+                          }; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                      ${scoreDisplay}
+                    </span>`
+                    }
                   </td>
                   <td>${stateBadge(c.state)}</td>
                   <td style="font-size: 12px; color: var(--text-secondary);">${esc(hunterTag)}</td>
                   <td style="font-size: 12px; color: var(--text-secondary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    ${esc(reasonCodes || "—")}
+                    ${esc(evidenceOrReasons)}
                   </td>
                   <td style="white-space: nowrap;">
-                    ${notionLink}${gmailLink}
-                    ${!notionLink && !gmailLink ? "—" : ""}
+                    ${notionLink}${gmailLink}${profileLink}
+                    ${!notionLink && !gmailLink && !profileLink ? "—" : ""}
                   </td>
                 </tr>`;
                 })

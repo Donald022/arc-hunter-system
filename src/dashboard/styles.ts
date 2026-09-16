@@ -414,6 +414,24 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(201,154,69,0.1);
 }
 
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239099A5' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+select:hover {
+  border-color: var(--accent-gold);
+}
+
+select option {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
 input::placeholder,
 textarea::placeholder {
   color: var(--text-secondary);
