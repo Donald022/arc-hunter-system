@@ -52,9 +52,9 @@ export async function seedQualifiedContact(
 ): Promise<ContactRecord> {
   const company = await store.companies.upsert({
     name: "Example Capital Advisors",
-    domain: "example-capital-advisors.test",
+    domain: "example-capital-advisors.com",
     region_signals: [],
-    source_urls: ["https://example-capital-advisors.test/practices/data-centers"],
+    source_urls: ["https://example-capital-advisors.com/practices/data-centers"],
     account_priority: 1,
     status: "active",
   });
@@ -62,7 +62,7 @@ export async function seedQualifiedContact(
     company_id: company.id,
     name: "Alex Rivera",
     title: "Managing Director, Data Center Tenant Representation",
-    work_email: extra.work_email ?? "alex.rivera@example-capital-advisors.test",
+    work_email: extra.work_email ?? "alex.rivera@example-capital-advisors.com",
     email_confidence: "Public",
     hunter_tags: ["broker"],
     role: "Intermediary",
@@ -78,9 +78,9 @@ export async function seedQualifiedContact(
   await store.evidence.insert({
     contact_id: contact.id,
     company_id: company.id,
-    url: "https://example-capital-advisors.test/practices/data-centers",
+    url: "https://example-capital-advisors.com/practices/data-centers",
     url_hash: createHash("sha256")
-      .update("https://example-capital-advisors.test/practices/data-centers")
+      .update("https://example-capital-advisors.com/practices/data-centers")
       .digest("hex"),
     quoted_text: "Occupier representation for hyperscale data-center leases",
     observed_at: new Date().toISOString(),

@@ -51,7 +51,8 @@ export async function discover(opts: DiscoverOptions = {}): Promise<{
       errors.push(...result.errors);
       for (const signal of result.signals) {
         allSignals.push(signal);
-        if (opts.dryRun ?? cfg.DRY_RUN) continue;
+        // Persist discoveries even in dry-run mode for visibility
+        // Only block expensive operations (enrichment, live email, production Notion)
         const domain = signal.company_domain ?? domainFromUrl(signal.source_url);
         const company = await store.companies.upsert({
           name: signal.company,

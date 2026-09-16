@@ -3,9 +3,9 @@ import { getConfig, type AppConfig } from "../config.ts";
 import type { Store } from "../db/types.ts";
 import { getStore } from "../db/pool.ts";
 import { senderCompliance } from "../domain/facts.ts";
-import { forbidsAutoSend } from "../domain/states.ts";
+import { forbidsAutoSend, canTransition } from "../domain/states.ts";
 import type { ContactRecord, DraftRecord, SendAttempt } from "../domain/types.ts";
-import { loadFactsCached } from "../jobs/factsLoader.ts";
+import { loadFactsSafe } from "../jobs/factsLoader.ts";
 import { requireOutboundAllowed } from "../jobs/controls.ts";
 import { isApprovalValid } from "../jobs/draft.ts";
 import { inc } from "../metrics.ts";
@@ -101,8 +101,51 @@ export async function executeApprovedSend(opts: {
   const store = opts.store ?? getStore();
   const cfg = opts.cfg ?? getConfig();
   const gmail = opts.gmail ?? getGmailPort();
-  const facts = await loadFactsCached();
+  const factsResult = await loadFactsSafe();
+  if (!factsResult.ok) {
+    if (canTransition(opts.contact.state, "FACT_REVIEW")) {
+      await store.contacts.setState(opts.contact.id, "FACT_REVIEW", opts.actor, factsResult.reason);
+    }
+    return { ok: false, message: `facts_unavailable:${factsResult.reason}`, sent: false };
+  }
+  const facts = factsResult.facts;
   const sender = cfg.GMAIL_SENDER ?? facts.reply_to ?? "";
+
+  // Import safety validation
+  const { validateEmail } = await import("../domain/email-validation.ts");
+  const { validateSendRecipient } = await import("../domain/safety.ts");
+
+  // Email validation gate
+  const emailValidation = validateEmail(opts.contact.work_email);
+  if (!emailValidation.valid) {
+    logger.warn("blocked_invalid_email", {
+      contact_id: opts.contact.id,
+      reason: emailValidation.reason,
+    });
+    return {
+      ok: false,
+      message: `invalid_email:${emailValidation.reason}`,
+      sent: false,
+    };
+  }
+
+  // Fixture contamination detection - check if email ends with .test
+  const isFixture = opts.contact.work_email?.toLowerCase().endsWith(".test") ?? false;
+
+  // Test recipient allowlist gate
+  const sendValidation = validateSendRecipient(opts.contact.work_email, cfg, isFixture);
+  if (!sendValidation.allowed) {
+    logger.warn("blocked_send_recipient", {
+      contact_id: opts.contact.id,
+      reason: sendValidation.reason,
+      mode: cfg.NODE_ENV,
+    });
+    return {
+      ok: false,
+      message: `recipient_blocked:${sendValidation.reason}`,
+      sent: false,
+    };
+  }
 
   try {
     await requireOutboundAllowed(store, cfg);

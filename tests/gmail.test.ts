@@ -17,7 +17,7 @@ function liveCfg(): AppConfig {
   resetConfigCache();
   process.env.LIVE_SEND_ENABLED = "true";
   process.env.DRY_RUN = "false";
-  process.env.GMAIL_SENDER = "outreach@arc.test";
+  process.env.GMAIL_SENDER = "outreach@arc-hunter-test.com";
   return { ...loadConfig(), ...testCfg };
 }
 
@@ -98,6 +98,28 @@ describe("gmail send gates", () => {
     });
     expect(res.sent).toBe(false);
     expect(res.message).toContain("missing_compliance");
+  });
+
+  it("refuses to send a draft approved against a fact version that has since changed", async () => {
+    const store = useTestStore();
+    const facts = approvedFacts();
+    const contact = await seedQualifiedContact(store);
+    const draft = await seedDraft(store, contact, facts);
+    // Facts change after approval (e.g. postal address correction) — this must
+    // invalidate the approval hash tie without requiring the draft to be re-fetched.
+    approvedFacts({ postal_address: "999 Changed Avenue" });
+    const mailbox = new SyntheticMailbox();
+    const res = await executeApprovedSend({
+      store,
+      draft,
+      contact,
+      actor: "U123",
+      gmail: mailbox,
+      cfg: liveCfg(),
+    });
+    expect(res.sent).toBe(false);
+    expect(res.message).toBe("stale_or_invalid_approval");
+    expect(mailbox.sent).toHaveLength(0);
   });
 
   it("retries Notion logging only after Gmail success, never Gmail", async () => {

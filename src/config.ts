@@ -67,6 +67,22 @@ export const configSchema = z.object({
   NOTION_CAMPAIGNS_DATA_SOURCE_ID: optionalString,
   NOTION_FACTS_PAGE_ID: optionalString,
   NOTION_API_VERSION: z.string().default("2025-09-03"),
+  // Environment identity gate for every Notion write path. Staging is the safe default.
+  NOTION_ENVIRONMENT: z.enum(["staging", "production"]).default("staging"),
+  NOTION_WRITES_ENABLED: bool.default(false),
+  // Required when NOTION_ENVIRONMENT=staging: the staging parent page id that all
+  // staging resources must live under. Ancestry is verified against this, not titles alone.
+  NOTION_EXPECTED_PARENT_PAGE_ID: optionalString,
+  // Where loadFactsCached() reads the Approved Outreach Facts bundle from.
+  FACTS_SOURCE: z.enum(["file", "notion"]).default("file"),
+  // Explicit application contract for how the Notion Approved Outreach Facts database
+  // is structured — this is a declared contract, not something inferred from live
+  // data (the production database currently has zero rows, so its semantics cannot be
+  // conclusively observed). Only "claim_per_row" is implemented today. Left as a plain
+  // optional string (not a zod enum) so an unknown/typo'd value fails closed inside
+  // src/domain/notionFacts.ts (scoped to the facts pipeline) rather than crashing the
+  // entire app's config load.
+  NOTION_FACTS_RECORD_MODEL: optionalString,
 
   SLACK_BOT_TOKEN: optionalString,
   SLACK_SIGNING_SECRET: optionalString,
@@ -102,6 +118,9 @@ export const configSchema = z.object({
   LIVE_SEND_ENABLED: bool.default(false),
   DAILY_SEND_CAP: z.coerce.number().int().nonnegative().default(5),
 
+  // Test recipient allowlist for internal testing (comma-separated exact emails)
+  TEST_RECIPIENT_ALLOWLIST: optionalString,
+
   DASHBOARD_SESSION_SECRET: z.string().min(16).default("change-me-dashboard-session-secret"),
   DASHBOARD_OPERATOR_EMAILS: csv,
   DASHBOARD_FIXTURE_LOGIN: bool.default(true),
@@ -128,6 +147,24 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
   if (parsed.LIVE_SEND_ENABLED && parsed.DRY_RUN) {
     throw new Error("LIVE_SEND_ENABLED=true is incompatible with DRY_RUN=true");
   }
+
+  // Parse and validate TEST_RECIPIENT_ALLOWLIST
+  if (parsed.TEST_RECIPIENT_ALLOWLIST) {
+    const allowlist = parsed.TEST_RECIPIENT_ALLOWLIST.split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    // Validate each email in allowlist
+    for (const email of allowlist) {
+      // Must be a complete email address, not a wildcard or partial domain
+      if (!email.includes("@") || email.includes("*") || email.startsWith("@")) {
+        throw new Error(
+          `Invalid TEST_RECIPIENT_ALLOWLIST entry: ${email}. Must be exact email addresses only.`,
+        );
+      }
+    }
+  }
+
   return parsed;
 }
 

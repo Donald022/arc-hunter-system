@@ -86,6 +86,89 @@ export async function buildApp() {
   });
 
   await registerDashboard(app, store);
+
+  // Health endpoints for production readiness
+  app.get("/health/live", async (_req, reply) => {
+    // Liveness: process is responsive
+    reply.status(200).send({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.get("/health/ready", async (_req, reply) => {
+    const start = Date.now();
+    const timeout = 5000; // 5 second timeout
+
+    try {
+      const { getPool } = await import("./db/pool.ts");
+      const pool = getPool();
+
+      // Check database connectivity with timeout
+      const checkPromise = (async () => {
+        const result = await pool.query("SELECT 1 as health_check");
+        return result.rows.length === 1;
+      })();
+
+      const timeoutPromise = new Promise<boolean>((_, reject) =>
+        setTimeout(() => reject(new Error("Health check timeout")), timeout),
+      );
+
+      const dbHealthy = await Promise.race([checkPromise, timeoutPromise]);
+
+      if (!dbHealthy) {
+        reply.status(503).send({
+          status: "unavailable",
+          reason: "database_check_failed",
+          duration_ms: Date.now() - start,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Check migrations are applied
+      const migrations = await pool.query(`
+        SELECT name FROM ${cfg.DB_SCHEMA}.migrations 
+        ORDER BY applied_at DESC 
+        LIMIT 1
+      `);
+
+      if (migrations.rows.length === 0) {
+        reply.status(503).send({
+          status: "unavailable",
+          reason: "no_migrations_applied",
+          duration_ms: Date.now() - start,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Optional dependency status (sanitized)
+      const dependencies = {
+        notion: (cfg as any).NOTION_API_KEY ? "configured" : "not_configured",
+        gemini: cfg.LLM_API_KEY && cfg.LLM_LIVE_ENABLED ? "enabled" : "disabled",
+        slack: cfg.SLACK_SIGNING_SECRET ? "configured" : "not_configured",
+        gmail: cfg.GMAIL_SENDER ? "configured" : "not_configured",
+      };
+
+      reply.status(200).send({
+        status: "ready",
+        duration_ms: Date.now() - start,
+        dependencies,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      const errorMsg = err?.message
+        ? String(err.message).replace(/postgresql:\/\/[^\s]+/g, "[REDACTED]")
+        : "unknown";
+
+      reply.status(503).send({
+        status: "unavailable",
+        reason: "health_check_error",
+        error: errorMsg,
+        duration_ms: Date.now() - start,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
   return app;
 }
 
